@@ -14,7 +14,8 @@ coverage/
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
 
 # Codex/local analysis artifacts
 .codex/
