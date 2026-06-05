@@ -9,6 +9,32 @@ FlowOps is a full-stack enterprise workflow automation and approval platform.
 
 ## Local development
 
+### Option 1: Docker Compose
+
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine with Compose).
+
+```bash
+docker compose up --build
+```
+
+- API: `http://localhost:5000/api`
+- Web: `http://localhost:5173`
+- API docs: `http://localhost:5000/api/docs`
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+Rebuild after dependency changes:
+
+```bash
+docker compose up --build
+```
+
+### Option 2: Run locally with Node.js
+
 Start the backend:
 
 ```bash
@@ -29,3 +55,12 @@ npm run dev
 
 - API: `http://localhost:5000/api`
 - Web: `http://localhost:5173`
+
+## Docker production builds
+
+Build production images:
+
+```bash
+docker build -t flowops-api ./flowops-api --target production
+docker build -t flowops-web ./flowops-web --target production
+```
