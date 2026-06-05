@@ -50,3 +50,24 @@ export class ConflictError extends AppError {
     });
   }
 }
+
+export class ExternalServiceError extends AppError {
+  public constructor(message = "External service unavailable") {
+    super({
+      code: "EXTERNAL_SERVICE_ERROR",
+      expose: true,
+      message,
+      statusCode: 502
+    });
+  }
+}
+
+export class RateLimitError extends AppError {
+  public constructor(message = "Too many requests") {
+    super({
+      code: "RATE_LIMIT_ERROR",
+      message,
+      statusCode: 429
+    });
+  }
+}
