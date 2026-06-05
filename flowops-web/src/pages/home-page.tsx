@@ -66,6 +66,10 @@ export function HomePage() {
                 </dd>
               </div>
               <div>
+                <dt className="text-muted-foreground">Database</dt>
+                <dd className="font-medium">{healthQuery.data.database}</dd>
+              </div>
+              <div>
                 <dt className="text-muted-foreground">Status</dt>
                 <dd className="font-medium">{healthQuery.data.status}</dd>
               </div>

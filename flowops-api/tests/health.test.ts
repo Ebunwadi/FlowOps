@@ -2,8 +2,15 @@ import request from "supertest";
 
 import { createApp } from "../src/app";
 
+jest.mock("../src/config/database", () => ({
+  checkDatabaseConnection: jest.fn().mockResolvedValue(true),
+  disconnectDatabase: jest.fn().mockResolvedValue(undefined),
+  prisma: {},
+}));
+
 interface HealthResponse {
   data: {
+    database: string;
     environment: string;
     service: string;
     status: string;
@@ -24,6 +31,7 @@ describe("health endpoint", () => {
     expect(body.data.environment).toBe("test");
     expect(body.data.service).toBe("flowops-api");
     expect(body.data.status).toBe("ok");
+    expect(body.data.database).toBe("connected");
     expect(typeof body.data.timestamp).toBe("string");
     expect(typeof body.data.uptimeSeconds).toBe("number");
   });

@@ -1,0 +1,2 @@
+-- Initial migration for FlowOps PostgreSQL setup.
+-- Domain models will be added in subsequent issues.

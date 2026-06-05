@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 
 import { createApp } from "./app";
+import { disconnectDatabase } from "./config/database";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
 
@@ -11,9 +12,9 @@ server.listen(env.port, () => {
   logger.info(
     {
       environment: env.nodeEnv,
-      port: env.port
+      port: env.port,
     },
-    "FlowOps API started"
+    "FlowOps API started",
   );
 });
 
@@ -26,8 +27,10 @@ function shutdown(signal: NodeJS.Signals): void {
       process.exit(1);
     }
 
-    logger.info("HTTP server closed");
-    process.exit(0);
+    void disconnectDatabase().finally(() => {
+      logger.info("HTTP server closed");
+      process.exit(0);
+    });
   });
 }
 
