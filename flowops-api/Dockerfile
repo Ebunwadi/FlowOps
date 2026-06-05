@@ -5,6 +5,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 RUN npm ci
 
@@ -15,11 +16,12 @@ CMD ["npm", "run", "dev"]
 
 FROM deps AS build
 COPY . .
-RUN npm run build
+RUN npx prisma generate && npm run build
 
 FROM base AS production
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 RUN npm ci --omit=dev && npx prisma generate
 COPY --from=build /app/dist ./dist

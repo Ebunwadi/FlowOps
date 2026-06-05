@@ -20,7 +20,9 @@ cp .env.example .env
 npm run dev
 ```
 
-The app runs at `http://localhost:5173`.
+The app runs at `http://localhost:5173`. Ensure the API is running at the URL configured in `VITE_API_BASE_URL` (default `http://localhost:5000/api`).
+
+For full project setup, see the [root README](../README.md).
 
 ## Scripts
 
@@ -48,3 +50,7 @@ src/
   routes/        React Router configuration
   types/         Shared TypeScript types
 ```
+
+## Related documentation
+
+- [Root README](../README.md) — full project setup, Docker Compose, and troubleshooting
