@@ -1,23 +1,42 @@
 name: flowops
 
 services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-16-alpine}
+    container_name: flowops-postgres
+    env_file:
+      - .env
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   api:
     build:
       context: ./flowops-api
       dockerfile: Dockerfile
       target: development
     container_name: flowops-api
-    ports:
-      - "5000:5000"
+    env_file:
+      - .env
     environment:
-      NODE_ENV: development
-      PORT: 5000
-      API_PREFIX: /api
-      LOG_LEVEL: info
-      CORS_ORIGINS: http://localhost:5173
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    ports:
+      - "${PORT:-5000}:5000"
     volumes:
       - ./flowops-api:/app
       - api_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm install && npx prisma migrate deploy && npm run dev"
     restart: unless-stopped
 
   web:
@@ -26,10 +45,10 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: flowops-web
+    env_file:
+      - .env
     ports:
       - "5173:5173"
-    environment:
-      VITE_API_BASE_URL: http://localhost:5000/api
     volumes:
       - ./flowops-web:/app
       - web_node_modules:/app/node_modules
@@ -39,4 +58,5 @@ services:
 
 volumes:
   api_node_modules:
+  postgres_data:
   web_node_modules:

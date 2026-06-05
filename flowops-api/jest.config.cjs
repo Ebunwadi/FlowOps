@@ -5,6 +5,7 @@ const config = {
   coverageDirectory: "coverage",
   moduleFileExtensions: ["ts", "js", "json"],
   roots: ["<rootDir>/tests"],
+  setupFiles: ["<rootDir>/tests/setupEnv.ts"],
   testEnvironment: "node",
   transform: {
     "^.+\\.ts$": [

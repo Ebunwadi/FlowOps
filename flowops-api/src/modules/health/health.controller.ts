@@ -1,11 +1,12 @@
 import type { Request, Response } from "express";
 
+import { asyncHandler } from "../../common/middleware/asyncHandler";
 import { sendSuccess } from "../../common/http/apiResponse";
 import { getHealth } from "./health.service";
 
-export function getHealthController(_req: Request, res: Response): void {
+export const getHealthController = asyncHandler(async (_req: Request, res: Response) => {
   sendSuccess(res, {
-    data: getHealth(),
-    message: "Service is healthy"
+    data: await getHealth(),
+    message: "Service is healthy",
   });
-}
+});
