@@ -8,7 +8,7 @@ FlowOps is a full-stack enterprise workflow automation and approval platform for
 | --- | --- |
 | Backend | Express.js, TypeScript, Prisma, PostgreSQL, Pino, Zod |
 | Frontend | React, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS |
-| Infrastructure | Docker Compose, PostgreSQL 16 |
+| Infrastructure | Docker Compose, PostgreSQL 16, Keycloak 26 |
 
 ## Prerequisites
 
@@ -20,8 +20,9 @@ FlowOps is a full-stack enterprise workflow automation and approval platform for
 
 ```text
 FlowOps/
-├── docker-compose.yml      # Local dev stack (postgres, api, web)
+├── docker-compose.yml      # Local dev stack (postgres, keycloak, api, web)
 ├── .env.example            # Shared Docker Compose environment variables
+├── keycloak/realm/         # Keycloak realm import (flowops realm)
 ├── flowops-api/            # Express.js backend API
 └── flowops-web/            # React frontend application
 ```
@@ -38,6 +39,8 @@ docker compose up --build
 | Web | http://localhost:5173 |
 | API | http://localhost:5000/api |
 | API docs | http://localhost:5000/api/docs |
+| Keycloak | http://localhost:8080 |
+| Keycloak admin console | http://localhost:8080/admin |
 | PostgreSQL | `localhost:5432` (user/password/db: `flowops`) |
 
 Stop the stack:
@@ -84,6 +87,57 @@ cp .env.example .env
 npm run dev
 ```
 
+## Keycloak (local development)
+
+FlowOps uses Keycloak for authentication. The `flowops` realm is imported automatically when Keycloak starts through Docker Compose.
+
+### Start Keycloak only
+
+```bash
+cp .env.example .env
+docker compose up -d keycloak
+```
+
+### Admin console
+
+- URL: http://localhost:8080/admin
+- Username: value of `KEYCLOAK_ADMIN` (default `admin`)
+- Password: value of `KEYCLOAK_ADMIN_PASSWORD` (default `admin`)
+
+Select the **flowops** realm in the top-left realm dropdown.
+
+### Realm and clients
+
+| Item | Value |
+| --- | --- |
+| Realm | `flowops` |
+| Frontend client | `flowops-web` (public, PKCE, redirect `http://localhost:5173/*`) |
+| API client | `flowops-api` (confidential, service account enabled) |
+| API client secret (dev) | `flowops-api-dev-secret` |
+
+OpenID configuration:
+
+http://localhost:8080/realms/flowops/.well-known/openid-configuration
+
+### Test users
+
+| Username | Password | Roles |
+| --- | --- | --- |
+| `test.user` | `password` | `user` |
+| `admin.user` | `password` | `admin`, `user` |
+
+Use these accounts to sign in once frontend Keycloak integration is implemented in Sprint 2.
+
+### Reset Keycloak data
+
+If you need to re-import the realm from scratch:
+
+```bash
+docker compose down
+docker volume rm flowops_keycloak_data
+docker compose up -d keycloak
+```
+
 ## Environment variables
 
 Docker Compose reads from the **repo root** `.env` file. Local Node.js development uses package-level `.env` files.
@@ -97,12 +151,20 @@ Docker Compose reads from the **repo root** `.env` file. Local Node.js developme
 | `POSTGRES_PASSWORD` | Database password | `flowops` |
 | `POSTGRES_DB` | Database name | `flowops` |
 | `POSTGRES_PORT` | Host port for PostgreSQL | `5432` |
+| `KEYCLOAK_VERSION` | Keycloak Docker image tag | `26.0.7` |
+| `KEYCLOAK_PORT` | Host port for Keycloak | `8080` |
+| `KEYCLOAK_ADMIN` | Keycloak admin username | `admin` |
+| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin password | `admin` |
+| `KEYCLOAK_REALM` | FlowOps realm name | `flowops` |
 | `NODE_ENV` | API runtime environment | `development` |
 | `PORT` | API port | `5000` |
 | `API_PREFIX` | API route prefix | `/api` |
 | `LOG_LEVEL` | Pino log level | `info` |
 | `CORS_ORIGINS` | Allowed frontend origins | `http://localhost:5173` |
 | `VITE_API_BASE_URL` | Frontend API base URL | `http://localhost:5000/api` |
+| `VITE_KEYCLOAK_URL` | Keycloak base URL for the web app | `http://localhost:8080` |
+| `VITE_KEYCLOAK_REALM` | Keycloak realm | `flowops` |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak public client ID | `flowops-web` |
 
 See [flowops-api/.env.example](./flowops-api/.env.example) and [flowops-web/.env.example](./flowops-web/.env.example) for local development.
 

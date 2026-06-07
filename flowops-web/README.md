@@ -37,6 +37,9 @@ For full project setup, see the [root README](../README.md).
 | Variable | Description | Default |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | Base URL for the FlowOps API | `http://localhost:5000/api` |
+| `VITE_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` |
+| `VITE_KEYCLOAK_REALM` | Keycloak realm | `flowops` |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak public client ID | `flowops-web` |
 
 ## Project structure
 
