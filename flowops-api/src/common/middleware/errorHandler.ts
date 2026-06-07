@@ -4,6 +4,10 @@ import { ZodError } from "zod";
 
 import { AppError } from "../errors/appError";
 import { ValidationError } from "../errors/httpErrors";
+import {
+  formatApiErrorMessage,
+  LogOrigin,
+} from "../logging/logFormat";
 
 function normalizeError(error: unknown): AppError {
   if (error instanceof AppError) {
@@ -31,16 +35,30 @@ function normalizeError(error: unknown): AppError {
 export function errorHandler(logger: Logger): ErrorRequestHandler {
   return (error, req, res, _next) => {
     const normalizedError = normalizeError(error);
+    const path = req.originalUrl.split("?")[0] ?? req.originalUrl;
+    const summary = normalizedError.expose
+      ? normalizedError.message
+      : "Internal server error";
 
+    // 4xx responses are already summarised by requestLogger; log details for 5xx only.
     if (normalizedError.statusCode >= 500) {
       logger.error(
         {
-          error,
+          origin: LogOrigin.API,
+          event: "http.error",
+          errorCode: normalizedError.code,
+          httpMethod: req.method,
+          httpPath: path,
+          httpStatus: normalizedError.statusCode,
           requestId: res.locals.requestId,
-          method: req.method,
-          path: req.path
+          error,
         },
-        "Unhandled request error"
+        formatApiErrorMessage(
+          req.method,
+          path,
+          normalizedError.statusCode,
+          summary,
+        ),
       );
     }
 

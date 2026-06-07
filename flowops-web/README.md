@@ -11,6 +11,7 @@ React and TypeScript frontend for the FlowOps workflow automation platform.
 - React Hook Form and Zod
 - Tailwind CSS
 - shadcn-style UI components
+- Keycloak (`keycloak-js`) for authentication
 
 ## Getting started
 
@@ -21,6 +22,14 @@ npm run dev
 ```
 
 The app runs at `http://localhost:5173`. Ensure the API is running at the URL configured in `VITE_API_BASE_URL` (default `http://localhost:5000/api`).
+
+Start Keycloak before testing sign-in (see the [root README](../README.md#keycloak-local-development)):
+
+```bash
+docker compose up -d keycloak
+```
+
+Test users: `test.user` / `password` or `admin.user` / `password`.
 
 For full project setup, see the [root README](../README.md).
 
@@ -46,13 +55,20 @@ For full project setup, see the [root README](../README.md).
 ```text
 src/
   api/           API client and endpoint modules
+  auth/          Keycloak auth provider, hooks, and token access
   components/    Shared UI and layout components
-  config/        Environment configuration
+  config/        Environment and Keycloak configuration
   lib/           Shared utilities
   pages/         Route-level page components
   routes/        React Router configuration
   types/         Shared TypeScript types
 ```
+
+## Authentication
+
+The app uses `keycloak-js` with PKCE against the `flowops-web` public client. On load, Keycloak performs a silent session check; unauthenticated users can sign in via the header **Sign in** button. Authenticated API requests automatically include a `Bearer` token when available.
+
+Frontend logs are sent to the API (`POST /api/logs/client`) and appear in Seq with `service = 'flowops-web'`. Set `VITE_CLIENT_LOGGING=false` to disable forwarding while keeping console output.
 
 ## Related documentation
 

@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import { getHealthStatus } from "@/api/health";
+import { AuthSessionCard } from "@/components/auth/auth-session-card";
 import { Button } from "@/components/ui/button";
+import { clientLogger } from "@/lib/logger";
 import {
   Card,
   CardContent,
@@ -16,6 +19,30 @@ export function HomePage() {
     queryFn: getHealthStatus,
   });
 
+  useEffect(() => {
+    if (healthQuery.data) {
+      clientLogger.info({
+        area: "health",
+        event: "api.check_succeeded",
+        message: `API health check succeeded (${healthQuery.data.status})`,
+        context: {
+          status: healthQuery.data.status,
+          database: healthQuery.data.database,
+        },
+      });
+    }
+  }, [healthQuery.data]);
+
+  useEffect(() => {
+    if (healthQuery.isError) {
+      clientLogger.warn({
+        area: "health",
+        event: "api.check_failed",
+        message: "API health check failed — backend may be unavailable",
+      });
+    }
+  }, [healthQuery.isError]);
+
   return (
     <div className="space-y-8">
       <section className="space-y-2">
@@ -25,6 +52,8 @@ export function HomePage() {
           TanStack Query, Tailwind CSS, and shadcn-style UI components.
         </p>
       </section>
+
+      <AuthSessionCard />
 
       <Card>
         <CardHeader>

@@ -61,6 +61,8 @@ The API runs at `http://localhost:5000/api`.
 | `LOG_LEVEL` | Pino log level (`debug`, `info`, `warn`, `error`) | `info` |
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins | `http://localhost:5173` |
 | `DATABASE_URL` | PostgreSQL connection string | — |
+| `SEQ_SERVER_URL` | Seq ingestion URL (enables centralized logging) | — |
+| `SEQ_API_KEY` | Seq API key when ingestion auth is enabled | — |
 
 Example local value:
 
@@ -70,7 +72,23 @@ DATABASE_URL=postgresql://flowops:flowops@localhost:5432/flowops?schema=public
 
 When running in Docker Compose, database credentials are configured in the **repo root** `.env` file. The API container receives a `DATABASE_URL` pointing at the `postgres` service.
 
-## Project structure
+## Logging (Seq)
+
+When `SEQ_SERVER_URL` is set, structured Pino logs are forwarded to [Seq](https://datalust.co/seq) in addition to stdout. Each event includes a `service: flowops-api` property for filtering.
+
+The frontend posts batched browser logs to `POST /api/logs/client`. Those events are written with `service: flowops-web` and `source: browser`.
+
+With Docker Compose from the repo root, open http://localhost:5341 to search and filter API logs.
+
+Example API message: `[API] GET /api/health returned 200 in 4ms`
+
+Structured fields: `origin`, `event`, `httpMethod`, `httpPath`, `httpStatus`, `durationMs`, and `requestId`.
+
+Local API development against a running Seq instance:
+
+```env
+SEQ_SERVER_URL=http://localhost:5341
+```
 
 ```text
 prisma.config.ts      Database URL and Prisma CLI configuration

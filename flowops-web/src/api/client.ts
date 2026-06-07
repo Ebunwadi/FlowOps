@@ -1,3 +1,4 @@
+import { getRegisteredAccessToken } from "@/auth/token-access";
 import { env } from "@/config/env";
 import { ApiClientError, type ApiResponse } from "@/types/api";
 
@@ -10,11 +11,13 @@ export async function apiClient<TData>(
   options: RequestOptions = {},
 ): Promise<TData> {
   const { body, headers, ...rest } = options;
+  const accessToken = await getRegisteredAccessToken();
 
   const response = await fetch(`${env.apiBaseUrl}${path}`, {
     ...rest,
     headers: {
       "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
