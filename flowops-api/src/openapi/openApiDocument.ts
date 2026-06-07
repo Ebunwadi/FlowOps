@@ -21,6 +21,17 @@ export const openApiDocument = {
           }
         }
       }
+    },
+    "/logs/client": {
+      post: {
+        summary: "Ingest browser client logs",
+        tags: ["Logging"],
+        responses: {
+          "202": {
+            description: "Client logs accepted for forwarding to Seq."
+          }
+        }
+      }
     }
   }
 } as const;

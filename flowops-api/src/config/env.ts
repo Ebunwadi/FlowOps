@@ -9,6 +9,11 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
+  SEQ_API_KEY: z.string().optional(),
+  SEQ_SERVER_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -20,4 +25,6 @@ export const env = {
   logLevel: parsedEnv.LOG_LEVEL,
   nodeEnv: parsedEnv.NODE_ENV,
   port: parsedEnv.PORT,
+  seqApiKey: parsedEnv.SEQ_API_KEY,
+  seqServerUrl: parsedEnv.SEQ_SERVER_URL,
 };

@@ -8,7 +8,7 @@ FlowOps is a full-stack enterprise workflow automation and approval platform for
 | --- | --- |
 | Backend | Express.js, TypeScript, Prisma, PostgreSQL, Pino, Zod |
 | Frontend | React, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS |
-| Infrastructure | Docker Compose, PostgreSQL 16, Keycloak 26 |
+| Infrastructure | Docker Compose, PostgreSQL 16, Keycloak 26, Seq |
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ FlowOps is a full-stack enterprise workflow automation and approval platform for
 
 ```text
 FlowOps/
-├── docker-compose.yml      # Local dev stack (postgres, keycloak, api, web)
+├── docker-compose.yml      # Local dev stack (postgres, keycloak, seq, api, web)
 ├── .env.example            # Shared Docker Compose environment variables
 ├── keycloak/realm/         # Keycloak realm import (flowops realm)
 ├── flowops-api/            # Express.js backend API
@@ -41,6 +41,7 @@ docker compose up --build
 | API docs | http://localhost:5000/api/docs |
 | Keycloak | http://localhost:8080 |
 | Keycloak admin console | http://localhost:8080/admin |
+| Seq (log viewer) | http://localhost:5341 |
 | PostgreSQL | `localhost:5432` (user/password/db: `flowops`) |
 
 Stop the stack:
@@ -138,6 +139,52 @@ docker volume rm flowops_keycloak_data
 docker compose up -d keycloak
 ```
 
+## Logging (Seq)
+
+FlowOps uses [Seq](https://datalust.co/seq) for centralized structured log viewing during local development — similar to a typical .NET + Seq setup.
+
+The API already logs with **Pino**. When `SEQ_SERVER_URL` is configured, logs are forwarded to Seq automatically (stdout logging continues as well).
+
+The React frontend sends structured logs to `POST /api/logs/client`, which the API forwards to Seq with `service = 'flowops-web'`. Browser console output is mirrored locally for development.
+
+### Start Seq
+
+Seq starts with the full stack via `docker compose up`, or on its own:
+
+```bash
+docker compose up -d seq
+```
+
+Open http://localhost:5341 to search, filter, and inspect logs.
+
+Useful filters:
+
+| Filter | Shows |
+| --- | --- |
+| `origin = 'api'` | All backend logs |
+| `origin = 'ui'` | All frontend logs |
+| `service = 'flowops-api'` | API service logs |
+| `service = 'flowops-web'` | Web app logs |
+| `event = 'http.request'` | API HTTP requests |
+| `area = 'auth'` | Authentication events (UI) |
+| `@Level = 'Error'` | Errors only |
+
+Example messages you will see:
+
+- `[API] GET /api/health returned 200 in 4ms`
+- `[UI][auth] User signed in via Keycloak`
+- `[UI][health] API health check succeeded (ok)`
+
+Structured fields include `origin`, `event`, `area`, `httpMethod`, `httpPath`, `httpStatus`, and `durationMs`.
+
+### Reset Seq data
+
+```bash
+docker compose down
+docker volume rm flowops_seq_data
+docker compose up -d seq
+```
+
 ## Environment variables
 
 Docker Compose reads from the **repo root** `.env` file. Local Node.js development uses package-level `.env` files.
@@ -161,10 +208,14 @@ Docker Compose reads from the **repo root** `.env` file. Local Node.js developme
 | `API_PREFIX` | API route prefix | `/api` |
 | `LOG_LEVEL` | Pino log level | `info` |
 | `CORS_ORIGINS` | Allowed frontend origins | `http://localhost:5173` |
+| `SEQ_VERSION` | Seq Docker image tag | `2024.3` |
+| `SEQ_PORT` | Host port for Seq UI and ingestion | `5341` |
+| `SEQ_SERVER_URL` | Seq URL for API log forwarding | `http://localhost:5341` |
 | `VITE_API_BASE_URL` | Frontend API base URL | `http://localhost:5000/api` |
 | `VITE_KEYCLOAK_URL` | Keycloak base URL for the web app | `http://localhost:8080` |
 | `VITE_KEYCLOAK_REALM` | Keycloak realm | `flowops` |
 | `VITE_KEYCLOAK_CLIENT_ID` | Keycloak public client ID | `flowops-web` |
+| `VITE_CLIENT_LOGGING` | Forward frontend logs to Seq via the API | `true` |
 
 See [flowops-api/.env.example](./flowops-api/.env.example) and [flowops-web/.env.example](./flowops-web/.env.example) for local development.
 
