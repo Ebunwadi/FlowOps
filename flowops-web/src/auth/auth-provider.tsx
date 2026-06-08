@@ -24,6 +24,14 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+function buildRedirectUri(returnPath?: string): string {
+  if (!returnPath) {
+    return `${window.location.origin}${window.location.pathname}${window.location.search}`;
+  }
+
+  return `${window.location.origin}${returnPath}`;
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [initialized, setInitialized] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -44,7 +52,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await keycloak.updateToken(TOKEN_MIN_VALIDITY_SECONDS);
       return keycloak.token;
     } catch {
-      // Session expired or refresh failed; force a fresh login on next action.
       syncAuthState(false);
       return undefined;
     }
@@ -140,9 +147,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoggerUserContext({});
   }, [user]);
 
-  const login = useCallback(async () => {
+  const login = useCallback(async (returnPath?: string) => {
     await keycloak.login({
-      redirectUri: `${window.location.origin}${window.location.pathname}`,
+      redirectUri: buildRedirectUri(returnPath),
     });
   }, []);
 
@@ -156,72 +163,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     () => ({
       initialized,
       isAuthenticated,
+      initError,
       user,
       login,
       logout,
       getAccessToken,
     }),
-    [getAccessToken, initialized, isAuthenticated, login, logout, user],
+    [getAccessToken, initError, initialized, isAuthenticated, login, logout, user],
   );
-
-  if (!initialized) {
-    return (
-      <AuthContext.Provider value={value}>
-        <AuthInitializingScreen />
-      </AuthContext.Provider>
-    );
-  }
-
-  if (initError) {
-    return (
-      <AuthContext.Provider value={value}>
-        <AuthErrorScreen message={initError} onRetry={() => window.location.reload()} />
-      </AuthContext.Provider>
-    );
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-function AuthInitializingScreen() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-6">
-      <div className="space-y-3 text-center">
-        <div
-          aria-hidden="true"
-          className="mx-auto size-8 animate-spin rounded-full border-2 border-muted border-t-primary"
-        />
-        <p className="text-sm text-muted-foreground">
-          Connecting to authentication service...
-        </p>
-      </div>
-    </div>
-  );
-}
-
-interface AuthErrorScreenProps {
-  message: string;
-  onRetry: () => void;
-}
-
-function AuthErrorScreen({ message, onRetry }: AuthErrorScreenProps) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-6">
-      <div className="max-w-md space-y-4 rounded-lg border p-6 text-center">
-        <h1 className="text-lg font-semibold">Authentication unavailable</h1>
-        <p className="text-sm text-muted-foreground">{message}</p>
-        <p className="text-sm text-muted-foreground">
-          Ensure Keycloak is running at the URL configured in{" "}
-          <code className="rounded bg-muted px-1 py-0.5">VITE_KEYCLOAK_URL</code>.
-        </p>
-        <button
-          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-          onClick={onRetry}
-          type="button"
-        >
-          Retry
-        </button>
-      </div>
-    </div>
-  );
 }

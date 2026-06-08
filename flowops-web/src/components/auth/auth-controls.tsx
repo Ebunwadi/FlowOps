@@ -5,7 +5,11 @@ export function AuthControls() {
   const { initialized, isAuthenticated, user, login, logout } = useAuth();
 
   if (!initialized) {
-    return null;
+    return (
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        Checking session...
+      </p>
+    );
   }
 
   if (!isAuthenticated || !user) {
