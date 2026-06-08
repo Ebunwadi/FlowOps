@@ -98,12 +98,14 @@ SEQ_SERVER_URL=http://localhost:5341
 Protected routes use the `authenticate` middleware to validate Keycloak-issued JWT access tokens:
 
 1. Reads the `Authorization: Bearer <token>` header
-2. Fetches Keycloak public keys from JWKS (cached by `jose`)
+2. Fetches Keycloak public keys from JWKS (cached)
 3. Verifies signature, issuer, and expiry
 4. Validates the `azp` (authorized party) claim matches `KEYCLOAK_CLIENT_ID`
-5. Attaches the user profile to `req.user`
+5. Attaches the Keycloak session to `req.user`
 
-Example protected endpoint: `GET /api/me` — returns the authenticated user's id, username, email, and roles.
+`GET /api/auth/me` runs `ensureLocalUser`, which creates or updates the local `users` row and sets `req.localUser` before returning the profile.
+
+Example protected endpoint: `GET /api/auth/me` — returns the local user id, profile fields, and Keycloak roles. `GET /api/me` remains as a deprecated alias.
 
 Public routes (no token required): `/api/health`, `/api/logs/client`.
 

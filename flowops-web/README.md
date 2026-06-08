@@ -66,7 +66,11 @@ src/
 
 ## Authentication
 
-The app uses `keycloak-js` with PKCE against the `flowops-web` public client. On load, Keycloak performs a silent session check; unauthenticated users can sign in via the header **Sign in** button. Authenticated API requests automatically include a `Bearer` token when available.
+The app uses `keycloak-js` with PKCE against the `flowops-web` public client. On load, Keycloak performs a silent session check; unauthenticated users can sign in via the header **Sign in** button.
+
+After sign-in, the app calls **`GET /api/auth/me`** with the Keycloak access token and stores the returned FlowOps profile in auth context. The header and dashboard display the synced name and email from the backend.
+
+Authenticated API requests automatically include a `Bearer` token via the shared API client.
 
 ### Protected routes
 

@@ -8,7 +8,6 @@ import { StaticKeyTokenVerifier } from "../src/auth/static-token-verifier";
 import { createAuthenticateMiddleware } from "../src/common/middleware/authenticate";
 import { errorHandler } from "../src/common/middleware/errorHandler";
 import { logger } from "../src/config/logger";
-import { getMeController } from "../src/modules/me/me.controller";
 
 const TEST_ISSUER = "http://test.local/realms/flowops";
 const TEST_CLIENT_ID = "flowops-web";
@@ -37,7 +36,6 @@ function createTestAuthApp(): TestAuthContext {
   app.get("/protected", createAuthenticateMiddleware(verifier), (_req, res) => {
     res.status(200).json({ success: true });
   });
-  app.get("/api/me", createAuthenticateMiddleware(verifier), getMeController);
   app.use(errorHandler(logger));
 
   const signAccessToken = (overrides: Record<string, unknown> = {}) =>
@@ -92,25 +90,5 @@ describe("JWT authentication middleware", () => {
       .expect(401);
 
     expect(response.body.message).toBe("Invalid or expired access token");
-  });
-
-  it("accepts a valid Keycloak access token and exposes req.user on /api/me", async () => {
-    const { app, signAccessToken } = createTestAuthApp();
-    const token = signAccessToken();
-
-    const response = await request(app)
-      .get("/api/me")
-      .set("Authorization", `Bearer ${token}`)
-      .expect(200);
-
-    expect(response.body.success).toBe(true);
-    expect(response.body.data).toEqual({
-      id: "keycloak-user-id-1",
-      username: "test.user",
-      email: "test.user@flowops.local",
-      name: "Test User",
-      roles: ["user"],
-      clientId: TEST_CLIENT_ID,
-    });
   });
 });

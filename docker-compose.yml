@@ -18,6 +18,20 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  adminer:
+    image: adminer:${ADMINER_VERSION:-4.8.1}
+    container_name: flowops-adminer
+    env_file:
+      - .env
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   keycloak:
     image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION:-26.0.7}
     container_name: flowops-keycloak

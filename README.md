@@ -20,7 +20,7 @@ FlowOps is a full-stack enterprise workflow automation and approval platform for
 
 ```text
 FlowOps/
-├── docker-compose.yml      # Local dev stack (postgres, keycloak, seq, api, web)
+├── docker-compose.yml      # Local dev stack (postgres, adminer, keycloak, seq, api, web)
 ├── .env.example            # Shared Docker Compose environment variables
 ├── keycloak/realm/         # Keycloak realm import (flowops realm)
 ├── flowops-api/            # Express.js backend API
@@ -42,6 +42,7 @@ docker compose up --build
 | Keycloak | http://localhost:8080 |
 | Keycloak admin console | http://localhost:8080/admin |
 | Seq (log viewer) | http://localhost:5341 |
+| Adminer (database UI) | http://localhost:8081 |
 | PostgreSQL | `localhost:5432` (user/password/db: `flowops`) |
 
 Stop the stack:
@@ -127,7 +128,7 @@ http://localhost:8080/realms/flowops/.well-known/openid-configuration
 | `test.user` | `password` | `user` |
 | `admin.user` | `password` | `admin`, `user` |
 
-Use these accounts to sign in once frontend Keycloak integration is implemented in Sprint 2.
+Use these accounts to sign in at http://localhost:5173.
 
 ### Reset Keycloak data
 
@@ -138,6 +139,119 @@ docker compose down
 docker volume rm flowops_keycloak_data
 docker compose up -d keycloak
 ```
+
+## Authentication
+
+FlowOps uses **Keycloak** for identity and **local PostgreSQL profiles** for application data. Keycloak handles sign-in, tokens, and roles; the API stores a `users` row linked by `keycloakUserId`.
+
+### Why Keycloak?
+
+- Industry-standard OpenID Connect / OAuth 2.0
+- Centralized login, logout, and session management
+- Realm roles map to FlowOps permissions (`user`, `admin`)
+- Same pattern scales to staging and production IdPs
+
+### Architecture
+
+```mermaid
+sequenceDiagram
+  participant Browser
+  participant Web as flowops-web
+  participant KC as Keycloak
+  participant API as flowops-api
+  participant DB as PostgreSQL
+
+  Browser->>Web: Open app
+  Web->>KC: check-sso (PKCE)
+  KC-->>Web: Access token (JWT)
+  Web->>API: GET /api/auth/me + Bearer token
+  API->>KC: Fetch JWKS (verify signature)
+  API->>DB: Sync / load local user
+  API-->>Web: FlowOps user profile
+  Web-->>Browser: Dashboard with name/email
+```
+
+| Layer | Responsibility |
+| --- | --- |
+| **Keycloak** | Login, JWT access tokens, realm roles |
+| **flowops-web** | PKCE login via `keycloak-js`, attach Bearer token to API calls |
+| **flowops-api** | Verify JWT, sync Keycloak user to `users` table, return profile |
+| **PostgreSQL** | Persist local user id, email, firstName, lastName |
+
+### Frontend login flow
+
+1. User opens http://localhost:5173 and clicks **Sign in**.
+2. Browser redirects to Keycloak (`flowops-web` public client, PKCE S256).
+3. After login, Keycloak redirects back with an authorization code; `keycloak-js` exchanges it for tokens.
+4. `AuthProvider` registers a token getter used by the API client.
+5. On successful authentication, the app calls **`GET /api/auth/me`** and stores the returned FlowOps profile in auth context.
+6. Protected routes (`/dashboard`, `/workflows`, etc.) require an active Keycloak session.
+
+### Backend token verification
+
+Protected API routes use middleware in this order:
+
+1. **`authenticate`** — reads `Authorization: Bearer <token>`, verifies JWT signature via Keycloak JWKS, checks issuer and `azp` (`flowops-web`).
+2. **`ensureLocalUser`** — creates or updates the local `users` row from token claims; sets `req.localUser`.
+3. **Controller** — returns the synced profile.
+
+Public routes (no token): `/api/health`, `/api/logs/client`.
+
+### Local user profile sync
+
+On each authenticated request through `ensureLocalUser`, the API upserts a row in `users`:
+
+| Field | Source |
+| --- | --- |
+| `keycloakUserId` | JWT `sub` |
+| `email` | JWT `email` (fallback: `{username}@flowops.local`) |
+| `firstName` / `lastName` | JWT `given_name` / `family_name`, or parsed from `name` |
+
+`GET /api/auth/me` returns the local id plus Keycloak session roles:
+
+```json
+{
+  "success": true,
+  "message": "Current user retrieved successfully",
+  "data": {
+    "id": "flowops-user-id",
+    "keycloakUserId": "keycloak-user-id",
+    "email": "test.user@flowops.local",
+    "firstName": "Test",
+    "lastName": "User",
+    "username": "test.user",
+    "roles": ["user"],
+    "createdAt": "2026-06-08T21:10:44.388Z",
+    "updatedAt": "2026-06-08T21:10:44.388Z"
+  }
+}
+```
+
+### Testing with Swagger
+
+1. Sign in at http://localhost:5173.
+2. On the home page **Authentication** card, click **Copy token for Swagger** (dev only).
+3. Open http://localhost:5000/api/docs → **Authorize** → paste the token (no `Bearer` prefix).
+4. Call **GET /api/auth/me**.
+
+**Docker note:** if token verification returns 401, recreate the API container so it picks up `KEYCLOAK_JWKS_URI`:
+
+```bash
+docker compose up -d --force-recreate api
+```
+
+The API validates tokens against issuer `http://localhost:8080/realms/flowops` but fetches signing keys from `http://keycloak:8080/...` inside Docker.
+
+### Authentication environment variables
+
+| Variable | Used by | Description |
+| --- | --- | --- |
+| `VITE_KEYCLOAK_URL` | Web | Keycloak base URL |
+| `VITE_KEYCLOAK_REALM` | Web | Realm name (`flowops`) |
+| `VITE_KEYCLOAK_CLIENT_ID` | Web | Public client (`flowops-web`) |
+| `KEYCLOAK_ISSUER` | API | Expected JWT issuer URL |
+| `KEYCLOAK_JWKS_URI` | API | JWKS endpoint (Compose sets internal `keycloak` host) |
+| `KEYCLOAK_CLIENT_ID` | API | Expected `azp` claim (`flowops-web`) |
 
 ## Logging (Seq)
 
@@ -198,6 +312,8 @@ Docker Compose reads from the **repo root** `.env` file. Local Node.js developme
 | `POSTGRES_PASSWORD` | Database password | `flowops` |
 | `POSTGRES_DB` | Database name | `flowops` |
 | `POSTGRES_PORT` | Host port for PostgreSQL | `5432` |
+| `ADMINER_VERSION` | Adminer Docker image tag | `4.8.1` |
+| `ADMINER_PORT` | Host port for Adminer | `8081` |
 | `KEYCLOAK_VERSION` | Keycloak Docker image tag | `26.0.7` |
 | `KEYCLOAK_PORT` | Host port for Keycloak | `8080` |
 | `KEYCLOAK_ADMIN` | Keycloak admin username | `admin` |
@@ -211,6 +327,9 @@ Docker Compose reads from the **repo root** `.env` file. Local Node.js developme
 | `SEQ_VERSION` | Seq Docker image tag | `2024.3` |
 | `SEQ_PORT` | Host port for Seq UI and ingestion | `5341` |
 | `SEQ_SERVER_URL` | Seq URL for API log forwarding | `http://localhost:5341` |
+| `KEYCLOAK_ISSUER` | Expected JWT issuer for API verification | `http://localhost:8080/realms/flowops` |
+| `KEYCLOAK_JWKS_URI` | JWKS URL (set automatically in Docker Compose) | `{KEYCLOAK_ISSUER}/protocol/openid-connect/certs` |
+| `KEYCLOAK_CLIENT_ID` | Expected JWT client id (`azp`) | `flowops-web` |
 | `VITE_API_BASE_URL` | Frontend API base URL | `http://localhost:5000/api` |
 | `VITE_KEYCLOAK_URL` | Keycloak base URL for the web app | `http://localhost:8080` |
 | `VITE_KEYCLOAK_REALM` | Keycloak realm | `flowops` |
@@ -218,6 +337,28 @@ Docker Compose reads from the **repo root** `.env` file. Local Node.js developme
 | `VITE_CLIENT_LOGGING` | Forward frontend logs to Seq via the API | `true` |
 
 See [flowops-api/.env.example](./flowops-api/.env.example) and [flowops-web/.env.example](./flowops-web/.env.example) for local development.
+
+## Database browser (Adminer)
+
+Adminer provides a lightweight web UI for browsing PostgreSQL during local development.
+
+Start it with the full stack (`docker compose up`) or on its own:
+
+```bash
+docker compose up -d postgres adminer
+```
+
+Open http://localhost:8081 and sign in with:
+
+| Field | Value |
+| --- | --- |
+| System | **PostgreSQL** |
+| Server | **postgres** |
+| Username | value of `POSTGRES_USER` (default `flowops`) |
+| Password | value of `POSTGRES_PASSWORD` (default `flowops`) |
+| Database | value of `POSTGRES_DB` (default `flowops`) |
+
+Use **`postgres`** as the server hostname (the Docker service name), not `localhost`. Adminer runs inside the Compose network and connects to PostgreSQL over the internal network.
 
 ## Database commands
 

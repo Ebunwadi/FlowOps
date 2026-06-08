@@ -82,6 +82,28 @@ export function AuthSessionCard() {
               >
                 Verify access token
               </Button>
+              {import.meta.env.DEV ? (
+                <Button
+                  onClick={async () => {
+                    const token = await getAccessToken();
+                    if (!token) {
+                      return;
+                    }
+
+                    await navigator.clipboard.writeText(token);
+                    clientLogger.info({
+                      area: "auth",
+                      event: "token.copied",
+                      message: "Access token copied for API testing (Swagger)",
+                      context: { tokenLength: token.length },
+                    });
+                  }}
+                  type="button"
+                  variant="outline"
+                >
+                  Copy token for Swagger
+                </Button>
+              ) : null}
               <Button
                 onClick={() => {
                   void logout();
