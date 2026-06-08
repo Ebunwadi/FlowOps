@@ -14,6 +14,12 @@ const envSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().url().optional(),
   ),
+  KEYCLOAK_ISSUER: z.string().url().default("http://localhost:8080/realms/flowops"),
+  KEYCLOAK_JWKS_URI: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional(),
+  ),
+  KEYCLOAK_CLIENT_ID: z.string().min(1).default("flowops-web"),
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -27,4 +33,9 @@ export const env = {
   port: parsedEnv.PORT,
   seqApiKey: parsedEnv.SEQ_API_KEY,
   seqServerUrl: parsedEnv.SEQ_SERVER_URL,
+  keycloakIssuer: parsedEnv.KEYCLOAK_ISSUER,
+  keycloakJwksUri:
+    parsedEnv.KEYCLOAK_JWKS_URI ??
+    `${parsedEnv.KEYCLOAK_ISSUER}/protocol/openid-connect/certs`,
+  keycloakClientId: parsedEnv.KEYCLOAK_CLIENT_ID,
 };
