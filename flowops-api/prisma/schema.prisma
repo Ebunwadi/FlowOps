@@ -7,4 +7,16 @@ datasource db {
   provider = "postgresql"
 }
 
-// Domain models will be added in subsequent issues.
+/// Local application profile linked to a Keycloak identity (auth is external).
+/// OrganisationMember relation will be added in Sprint 3.
+model User {
+  id             String   @id @default(uuid())
+  keycloakUserId String   @unique
+  email          String   @unique
+  firstName      String?
+  lastName       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("users")
+}

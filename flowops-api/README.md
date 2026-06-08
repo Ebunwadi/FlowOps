@@ -114,7 +114,7 @@ Public routes (no token required): `/api/health`, `/api/logs/client`.
 ```text
 prisma.config.ts      Database URL and Prisma CLI configuration
 prisma/
-  schema.prisma       Database schema
+  schema.prisma       Database schema (User profile linked to Keycloak)
   migrations/         SQL migrations
 src/
   generated/prisma/   Generated Prisma Client (do not edit)
