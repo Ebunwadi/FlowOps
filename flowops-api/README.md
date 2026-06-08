@@ -63,6 +63,9 @@ The API runs at `http://localhost:5000/api`.
 | `DATABASE_URL` | PostgreSQL connection string | — |
 | `SEQ_SERVER_URL` | Seq ingestion URL (enables centralized logging) | — |
 | `SEQ_API_KEY` | Seq API key when ingestion auth is enabled | — |
+| `KEYCLOAK_ISSUER` | Expected JWT issuer (Keycloak realm URL) | `http://localhost:8080/realms/flowops` |
+| `KEYCLOAK_JWKS_URI` | JWKS endpoint for signature verification | `{KEYCLOAK_ISSUER}/protocol/openid-connect/certs` |
+| `KEYCLOAK_CLIENT_ID` | Expected token client (`azp` claim) | `flowops-web` |
 
 Example local value:
 
@@ -90,6 +93,24 @@ Local API development against a running Seq instance:
 SEQ_SERVER_URL=http://localhost:5341
 ```
 
+## Authentication (JWT)
+
+Protected routes use the `authenticate` middleware to validate Keycloak-issued JWT access tokens:
+
+1. Reads the `Authorization: Bearer <token>` header
+2. Fetches Keycloak public keys from JWKS (cached by `jose`)
+3. Verifies signature, issuer, and expiry
+4. Validates the `azp` (authorized party) claim matches `KEYCLOAK_CLIENT_ID`
+5. Attaches the user profile to `req.user`
+
+Example protected endpoint: `GET /api/me` — returns the authenticated user's id, username, email, and roles.
+
+Public routes (no token required): `/api/health`, `/api/logs/client`.
+
+**Docker note:** tokens issued to the browser contain issuer `http://localhost:8080/realms/flowops`, while the API container fetches JWKS from `http://keycloak:8080/...` (configured in `docker-compose.yml`).
+
+## Project structure
+
 ```text
 prisma.config.ts      Database URL and Prisma CLI configuration
 prisma/
@@ -98,6 +119,7 @@ prisma/
 src/
   generated/prisma/   Generated Prisma Client (do not edit)
   app.ts              Express app factory and middleware
+  auth/               Keycloak JWT verification
   server.ts           HTTP server bootstrap
   config/             Environment, logger, and database client
   common/             Errors, HTTP helpers, and shared middleware

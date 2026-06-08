@@ -32,6 +32,30 @@ export const openApiDocument = {
           }
         }
       }
+    },
+    "/me": {
+      get: {
+        summary: "Get authenticated user profile",
+        tags: ["Auth"],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Returns the authenticated Keycloak user."
+          },
+          "401": {
+            description: "Missing or invalid access token."
+          }
+        }
+      }
+    }
+  },
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT"
+      }
     }
   }
 } as const;
