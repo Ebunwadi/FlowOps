@@ -1,3 +1,5 @@
+import type { FlowOpsUserProfile } from "@/types/user";
+
 /** Profile information extracted from the Keycloak access token. */
 export interface AuthUser {
   id: string;
@@ -14,8 +16,12 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   /** Set when Keycloak cannot be reached during initialization. */
   initError: string | null;
-  /** Parsed user profile when authenticated; otherwise null. */
+  /** Parsed Keycloak session profile when authenticated; otherwise null. */
   user: AuthUser | null;
+  /** Synced local FlowOps profile from GET /api/auth/me; null until loaded or on error. */
+  profile: FlowOpsUserProfile | null;
+  /** True while the local profile is being fetched from the API. */
+  profileLoading: boolean;
   /** Redirects the browser to the Keycloak login page. */
   login: (returnPath?: string) => Promise<void>;
   /** Ends the Keycloak session and returns the user to the app origin. */

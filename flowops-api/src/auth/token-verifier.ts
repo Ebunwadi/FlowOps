@@ -24,6 +24,8 @@ export function mapVerifiedToken(
     username: claims.preferred_username,
     email: claims.email,
     name: claims.name,
+    givenName: claims.given_name,
+    familyName: claims.family_name,
     roles: claims.realm_access?.roles ?? [],
     clientId,
   };
