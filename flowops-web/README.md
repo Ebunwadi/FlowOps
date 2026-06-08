@@ -68,6 +68,21 @@ src/
 
 The app uses `keycloak-js` with PKCE against the `flowops-web` public client. On load, Keycloak performs a silent session check; unauthenticated users can sign in via the header **Sign in** button. Authenticated API requests automatically include a `Bearer` token when available.
 
+### Protected routes
+
+These routes require an active Keycloak session (`ProtectedRoute`):
+
+| Path | Page |
+| --- | --- |
+| `/dashboard` | Dashboard |
+| `/workflows` | Workflows |
+| `/requests` | Requests |
+| `/settings` | Settings |
+
+Unauthenticated users hitting a protected URL are redirected to Keycloak login and returned to the same page after sign-in. Refreshing a protected page reuses the existing session via silent SSO (`check-sso`).
+
+The home page (`/`) remains public.
+
 Frontend logs are sent to the API (`POST /api/logs/client`) and appear in Seq with `service = 'flowops-web'`. Set `VITE_CLIENT_LOGGING=false` to disable forwarding while keeping console output.
 
 ## Related documentation

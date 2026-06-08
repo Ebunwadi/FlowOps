@@ -12,10 +12,12 @@ export interface AuthContextValue {
   initialized: boolean;
   /** True when the user has an active Keycloak session. */
   isAuthenticated: boolean;
+  /** Set when Keycloak cannot be reached during initialization. */
+  initError: string | null;
   /** Parsed user profile when authenticated; otherwise null. */
   user: AuthUser | null;
   /** Redirects the browser to the Keycloak login page. */
-  login: () => Promise<void>;
+  login: (returnPath?: string) => Promise<void>;
   /** Ends the Keycloak session and returns the user to the app origin. */
   logout: () => Promise<void>;
   /** Returns the current access token, refreshing it when close to expiry. */
