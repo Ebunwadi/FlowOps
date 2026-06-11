@@ -8,7 +8,6 @@ datasource db {
 }
 
 /// Local application profile linked to a Keycloak identity (auth is external).
-/// OrganisationMember relation will be added in Sprint 3.
 model User {
   id             String   @id @default(uuid())
   keycloakUserId String   @unique
@@ -18,5 +17,91 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  organisationMemberships OrganisationMember[]
+  createdOrganisations    Organisation[]       @relation("CreatedOrganisations")
+
   @@map("users")
+}
+
+/// Tenant workspace; all workflow and membership data is scoped to an organisation.
+model Organisation {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User                 @relation("CreatedOrganisations", fields: [createdById], references: [id])
+  members   OrganisationMember[]
+  roles     Role[]
+
+  @@index([createdById])
+  @@map("organisations")
+}
+
+/// Links a FlowOps user to an organisation with an assigned role.
+model OrganisationMember {
+  id             String           @id @default(uuid())
+  userId         String
+  organisationId String
+  roleId         String
+  status         MembershipStatus @default(ACTIVE)
+  joinedAt       DateTime         @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, organisationId])
+  @@index([organisationId])
+  @@index([roleId])
+  @@map("organisation_members")
+}
+
+/// Application role — org-scoped custom roles or global system roles (organisationId null).
+model Role {
+  id             String   @id @default(uuid())
+  organisationId String?
+  name           String
+  description    String?
+  isSystemRole   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organisation Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  members      OrganisationMember[]
+  permissions  RolePermission[]
+
+  @@unique([organisationId, name])
+  @@map("roles")
+}
+
+/// Fine-grained capability key checked by RBAC middleware (e.g. manage_users, approve_requests).
+model Permission {
+  id          String @id @default(uuid())
+  key         String @unique
+  description String
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+/// Many-to-many join between roles and permissions.
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
 }
