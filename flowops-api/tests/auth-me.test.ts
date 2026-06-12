@@ -26,12 +26,6 @@ function createAuthMeTestApp(verifier: StaticKeyTokenVerifier): Express {
     ensureLocalUser,
     getCurrentUserController,
   );
-  app.get(
-    "/api/me",
-    createAuthenticateMiddleware(verifier),
-    ensureLocalUser,
-    getCurrentUserController,
-  );
   app.use(errorHandler(logger));
   return app;
 }
@@ -113,16 +107,5 @@ describe("GET /api/auth/me", () => {
 
   it("returns 401 when no bearer token is provided", async () => {
     await request(app).get("/api/auth/me").expect(401);
-  });
-
-  it("supports the legacy GET /api/me alias", async () => {
-    const token = signTestToken();
-
-    const response = await request(app)
-      .get("/api/me")
-      .set("Authorization", `Bearer ${token}`)
-      .expect(200);
-
-    expect(response.body.data).toEqual(expectedProfile);
   });
 });

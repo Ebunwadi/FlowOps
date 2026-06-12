@@ -49,23 +49,6 @@ export const openApiDocument = {
         }
       }
     },
-    "/me": {
-      get: {
-        summary: "Get authenticated user profile (legacy alias)",
-        deprecated: true,
-        tags: ["Auth"],
-        security: [{ bearerAuth: [] }],
-        responses: {
-          "200": {
-            description:
-              "Returns the synced local user profile with Keycloak session roles."
-          },
-          "401": {
-            description: "Missing or invalid access token."
-          }
-        }
-      }
-    }
   },
   components: {
     securitySchemes: {

@@ -20,20 +20,20 @@ export class StaticKeyTokenVerifier implements AccessTokenVerifier {
     this.publicKeyPem = publicKeyPem;
   }
 
-  public async verifyAccessToken(token: string): Promise<ReturnType<typeof mapVerifiedToken>> {
+  public verifyAccessToken(token: string): Promise<ReturnType<typeof mapVerifiedToken>> {
     try {
       const payload = jwt.verify(token, this.publicKeyPem, {
         algorithms: ["RS256"],
         issuer: this.issuer,
       }) as KeycloakAccessTokenClaims;
 
-      return mapVerifiedToken(payload, this.expectedClientId);
+      return Promise.resolve(mapVerifiedToken(payload, this.expectedClientId));
     } catch (error) {
       if (error instanceof AuthenticationError) {
-        throw error;
+        return Promise.reject(error);
       }
 
-      throw new AuthenticationError("Invalid or expired access token");
+      return Promise.reject(new AuthenticationError("Invalid or expired access token"));
     }
   }
 }

@@ -122,7 +122,7 @@ Protected routes use the `authenticate` middleware to validate Keycloak-issued J
 
 `GET /api/auth/me` runs `ensureLocalUser`, which creates or updates the local `users` row and sets `req.localUser` before returning the profile.
 
-Example protected endpoint: `GET /api/auth/me` — returns the local user id, profile fields, and Keycloak roles. `GET /api/me` remains as a deprecated alias.
+Example protected endpoint: `GET /api/auth/me` — returns the local user id, profile fields, and Keycloak roles.
 
 Public routes (no token required): `/api/health`, `/api/logs/client`.
 
