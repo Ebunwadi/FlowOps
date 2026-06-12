@@ -29,16 +29,25 @@ export const DEFAULT_PERMISSIONS = [
 
   { key: "requests:create", description: "Submit workflow requests" },
   { key: "requests:view-own", description: "View own workflow requests" },
-  { key: "requests:view-all", description: "View all organisation workflow requests" },
+  {
+    key: "requests:view-all",
+    description: "View all organisation workflow requests",
+  },
   { key: "requests:cancel", description: "Cancel workflow requests" },
 
   { key: "approvals:view", description: "View pending approvals" },
   { key: "approvals:approve", description: "Approve workflow requests" },
   { key: "approvals:reject", description: "Reject workflow requests" },
-  { key: "approvals:delegate", description: "Delegate approvals to another user" },
+  {
+    key: "approvals:delegate",
+    description: "Delegate approvals to another user",
+  },
 
   { key: "notifications:view", description: "View notifications" },
-  { key: "notifications:update", description: "Update notification read state" },
+  {
+    key: "notifications:update",
+    description: "Update notification read state",
+  },
 
   { key: "auditlogs:view", description: "View audit logs" },
 
