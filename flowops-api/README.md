@@ -49,7 +49,24 @@ The API runs at `http://localhost:5000/api`.
 | `npm run db:migrate` | Create and apply a new migration (development) |
 | `npm run db:migrate:deploy` | Apply existing migrations |
 | `npm run db:generate` | Regenerate Prisma client |
+| `npm run db:seed` | Seed default permissions (idempotent) |
 | `npm run db:studio` | Open Prisma Studio |
+
+## Database seed
+
+After migrations, seed the default FlowOps permission keys (safe to run multiple times):
+
+```bash
+npm run db:seed
+```
+
+This upserts 35 system permissions such as `organisation:create`, `members:invite`, and `approvals:approve`. Permissions are stored in the `permissions` table and can later be attached to roles via `role_permissions`.
+
+With Docker Compose from the repo root:
+
+```bash
+docker compose exec api npm run db:seed
+```
 
 ## Environment variables
 

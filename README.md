@@ -367,6 +367,7 @@ Run from `flowops-api`:
 ```bash
 npm run db:migrate        # create and apply a new migration (development)
 npm run db:migrate:deploy # apply existing migrations
+npm run db:seed           # seed default permissions (idempotent)
 npm run db:generate       # regenerate Prisma client
 npm run db:studio         # open Prisma Studio
 ```
