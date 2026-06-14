@@ -87,3 +87,6 @@ export function createEnsureOrganisationContextMiddleware(
  * authenticated user has an active membership. Must run after `ensureLocalUser`.
  */
 export const ensureOrganisationContext = createEnsureOrganisationContextMiddleware();
+
+/** Alias matching issue/route examples (`requireOrganisation`). */
+export const requireOrganisation = ensureOrganisationContext;

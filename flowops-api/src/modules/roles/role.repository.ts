@@ -1,4 +1,5 @@
 import type { DbClient } from "../../common/types/database";
+import { prisma } from "../../config/database";
 import type { Permission } from "../../generated/prisma/client";
 
 export async function findPermissionsByKeys(
@@ -10,4 +11,22 @@ export async function findPermissionsByKeys(
       key: { in: keys },
     },
   });
+}
+
+export async function findPermissionKeysByRoleId(
+  roleId: string,
+  db: DbClient = prisma,
+): Promise<string[]> {
+  const rolePermissions = await db.rolePermission.findMany({
+    where: { roleId },
+    select: {
+      permission: {
+        select: {
+          key: true,
+        },
+      },
+    },
+  });
+
+  return rolePermissions.map((entry) => entry.permission.key);
 }
