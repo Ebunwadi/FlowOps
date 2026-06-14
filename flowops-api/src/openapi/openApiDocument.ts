@@ -139,6 +139,83 @@ export const openApiDocument = {
         }
       }
     },
+    "/organisations/{id}/members": {
+      get: {
+        summary: "List organisation members",
+        tags: ["Members"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/OrganisationId" }],
+        responses: {
+          "200": {
+            description: "Returns active members when the caller has members:view."
+          },
+          "403": {
+            description: "Caller lacks members:view permission."
+          },
+          "404": {
+            description: "Organisation not found or caller is not a member."
+          }
+        }
+      }
+    },
+    "/organisations/{id}/members/{memberId}/role": {
+      patch: {
+        summary: "Update member role",
+        tags: ["Members"],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: "#/components/parameters/OrganisationId" },
+          { $ref: "#/components/parameters/MemberId" }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateMemberRoleRequest" }
+            }
+          }
+        },
+        responses: {
+          "200": {
+            description: "Member role updated successfully."
+          },
+          "403": {
+            description: "Caller lacks members:update-role permission."
+          },
+          "404": {
+            description: "Member or role not found."
+          },
+          "409": {
+            description: "Cannot demote or remove the last Owner."
+          }
+        }
+      }
+    },
+    "/organisations/{id}/members/{memberId}": {
+      delete: {
+        summary: "Remove organisation member",
+        tags: ["Members"],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: "#/components/parameters/OrganisationId" },
+          { $ref: "#/components/parameters/MemberId" }
+        ],
+        responses: {
+          "200": {
+            description: "Member removed successfully."
+          },
+          "403": {
+            description: "Caller lacks members:remove permission."
+          },
+          "404": {
+            description: "Member not found."
+          },
+          "409": {
+            description: "Cannot remove the last Owner."
+          }
+        }
+      }
+    },
   },
   components: {
     securitySchemes: {
@@ -154,6 +231,16 @@ export const openApiDocument = {
         in: "path",
         required: true,
         description: "Organisation UUID (from create or list response)",
+        schema: {
+          type: "string",
+          format: "uuid"
+        }
+      },
+      MemberId: {
+        name: "memberId",
+        in: "path",
+        required: true,
+        description: "Organisation membership UUID",
         schema: {
           type: "string",
           format: "uuid"
@@ -188,6 +275,17 @@ export const openApiDocument = {
             type: "string",
             example: "updated-slug",
             description: "Lowercase letters, numbers, and hyphens only"
+          }
+        }
+      },
+      UpdateMemberRoleRequest: {
+        type: "object",
+        required: ["roleId"],
+        properties: {
+          roleId: {
+            type: "string",
+            format: "uuid",
+            description: "Role id belonging to the same organisation"
           }
         }
       }

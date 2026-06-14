@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   AuthenticationError,
   AuthorizationError,
+  NotFoundError,
   ValidationError,
 } from "../errors/httpErrors";
 import { findActiveMembershipForUserInOrganisation } from "../../modules/organisations/organisation.repository";
@@ -90,3 +91,39 @@ export const ensureOrganisationContext = createEnsureOrganisationContextMiddlewa
 
 /** Alias matching issue/route examples (`requireOrganisation`). */
 export const requireOrganisation = ensureOrganisationContext;
+
+export function createEnsureOrganisationFromParamMiddleware(
+  paramName = "id",
+  lookupMembership: MembershipLookup = findActiveMembershipForUserInOrganisation,
+): RequestHandler {
+  return asyncHandler(
+    async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+      if (!req.localUser) {
+        throw new AuthenticationError();
+      }
+
+      const organisationId = req.params[paramName];
+
+      if (!organisationIdSchema.safeParse(organisationId).success) {
+        throw new ValidationError("Invalid organisation id");
+      }
+
+      const membership = await lookupMembership(req.localUser.id, organisationId);
+
+      if (!membership) {
+        throw new NotFoundError("Organisation not found");
+      }
+
+      req.organisation = membership.organisation;
+      req.membership = toRequestMembership(membership);
+      next();
+    },
+  );
+}
+
+/**
+ * Resolves tenant context from a route param (default `id`) and verifies the
+ * authenticated user has an active membership. Must run after `ensureLocalUser`.
+ */
+export const ensureOrganisationFromParam =
+  createEnsureOrganisationFromParamMiddleware();
