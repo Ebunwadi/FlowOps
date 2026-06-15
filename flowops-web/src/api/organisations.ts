@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import type { OrganisationMembershipAccess } from "@/types/membership";
 import type {
   CreateOrganisationInput,
   CreateOrganisationResult,
@@ -7,6 +8,10 @@ import type {
 
 export function listOrganisations(): Promise<OrganisationSummary[]> {
   return apiClient<OrganisationSummary[]>("/organisations");
+}
+
+export function getOrganisationAccess(): Promise<OrganisationMembershipAccess> {
+  return apiClient<OrganisationMembershipAccess>("/organisations/access");
 }
 
 export function createOrganisation(

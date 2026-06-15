@@ -1,4 +1,6 @@
 import { ConflictError, NotFoundError } from "../../common/errors/httpErrors";
+import { findPermissionKeysByRoleId } from "../roles/role.repository";
+import type { RequestOrganisationMembership } from "./organisation-context.types";
 import { isPrismaUniqueConstraintError } from "../../common/utils/isPrismaUniqueConstraintError";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
@@ -89,6 +91,30 @@ export async function createOrganisationForUser(
     result.organisation,
     result.roles[DEFAULT_ROLE_NAMES.OWNER].name,
   );
+}
+
+export interface OrganisationAccessResponse {
+  membershipId: string;
+  role: {
+    id: string;
+    name: string;
+  };
+  permissions: string[];
+}
+
+export async function getOrganisationAccessForMembership(
+  membership: Pick<RequestOrganisationMembership, "id" | "roleId" | "role">,
+): Promise<OrganisationAccessResponse> {
+  const permissions = await findPermissionKeysByRoleId(membership.roleId);
+
+  return {
+    membershipId: membership.id,
+    role: {
+      id: membership.roleId,
+      name: membership.role.name,
+    },
+    permissions,
+  };
 }
 
 export async function listOrganisationsForUser(

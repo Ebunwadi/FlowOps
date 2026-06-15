@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 
 import { useOrganisation } from "@/auth/use-organisation";
+import { usePermissions } from "@/auth/use-permissions";
 import { MembersTable } from "@/components/members/members-table";
 import {
   Card,
@@ -9,17 +10,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { canManageMembers, canViewMembers } from "@/lib/member-permissions";
 
 export function OrganisationMembersPage() {
   const { currentOrganisation } = useOrganisation();
+  const { hasAnyPermission, hasPermission, membershipAccessLoading } =
+    usePermissions();
 
   if (!currentOrganisation) {
     return <Navigate replace to="/organisation/setup" />;
   }
 
-  const canView = canViewMembers(currentOrganisation.role);
-  const canManage = canManageMembers(currentOrganisation.role);
+  const canView = hasPermission("members:view");
+  const canManage = hasAnyPermission("members:update-role", "members:remove");
 
   return (
     <div className="space-y-6">
@@ -42,7 +44,9 @@ export function OrganisationMembersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!canView ? (
+          {membershipAccessLoading ? (
+            <p className="text-sm text-muted-foreground">Loading permissions…</p>
+          ) : !canView ? (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               Your role does not include access to member management. Contact an
               organisation admin if you need access.

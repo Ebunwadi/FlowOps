@@ -3,7 +3,10 @@ import { z } from "zod";
 
 import { authenticate } from "../../common/middleware/authenticate";
 import { ensureLocalUser } from "../../common/middleware/ensureLocalUser";
-import { ensureOrganisationFromParam } from "../../common/middleware/ensureOrganisationContext";
+import {
+  ensureOrganisationContext,
+  ensureOrganisationFromParam,
+} from "../../common/middleware/ensureOrganisationContext";
 import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
 import {
@@ -19,6 +22,7 @@ import {
 import {
   createOrganisationController,
   getCurrentOrganisationController,
+  getOrganisationAccessController,
   getOrganisationByIdController,
   listOrganisationsController,
   updateOrganisationController,
@@ -45,6 +49,8 @@ organisationRouter.post(
 organisationRouter.get("/current", getCurrentOrganisationController);
 
 organisationRouter.get("/", listOrganisationsController);
+
+organisationRouter.get("/access", ensureOrganisationContext, getOrganisationAccessController);
 
 organisationRouter.get(
   "/:id/members",
