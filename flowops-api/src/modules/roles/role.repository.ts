@@ -30,3 +30,19 @@ export async function findPermissionKeysByRoleId(
 
   return rolePermissions.map((entry) => entry.permission.key);
 }
+
+export async function findRolesByOrganisationId(
+  organisationId: string,
+  db: DbClient = prisma,
+) {
+  return db.role.findMany({
+    where: { organisationId },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      isSystemRole: true,
+    },
+    orderBy: { name: "asc" },
+  });
+}

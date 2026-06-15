@@ -8,6 +8,7 @@ import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
 import {
   listOrganisationMembersController,
+  listOrganisationRolesController,
   removeOrganisationMemberController,
   updateOrganisationMemberRoleController,
 } from "../members/member.controller";
@@ -51,6 +52,14 @@ organisationRouter.get(
   ensureOrganisationFromParam,
   requirePermission("members:view"),
   listOrganisationMembersController,
+);
+
+organisationRouter.get(
+  "/:id/roles",
+  validateRequest({ params: organisationIdParamSchema }),
+  ensureOrganisationFromParam,
+  requirePermission("members:view"),
+  listOrganisationRolesController,
 );
 
 organisationRouter.patch(
