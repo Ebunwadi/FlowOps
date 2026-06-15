@@ -2,7 +2,7 @@ import { env } from "@/config/env";
 
 export type ClientLogLevel = "debug" | "info" | "warn" | "error";
 
-export type LogArea = "app" | "auth" | "health" | "error";
+export type LogArea = "app" | "auth" | "health" | "organisation" | "error";
 
 export interface StructuredLog {
   area: LogArea;

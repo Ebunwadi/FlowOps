@@ -1,8 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { getHealthStatus } from "@/api/health";
+import { useAuth } from "@/auth/use-auth";
+import { useOrganisation } from "@/auth/use-organisation";
 import { AuthSessionCard } from "@/components/auth/auth-session-card";
+import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
 import { Button } from "@/components/ui/button";
 import { clientLogger } from "@/lib/logger";
 import {
@@ -14,10 +18,27 @@ import {
 } from "@/components/ui/card";
 
 export function HomePage() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { organisations, organisationsLoading } = useOrganisation();
+
   const healthQuery = useQuery({
     queryKey: ["health"],
     queryFn: getHealthStatus,
   });
+
+  useEffect(() => {
+    if (!isAuthenticated || organisationsLoading) {
+      return;
+    }
+
+    if (organisations.length === 0) {
+      navigate("/organisation/setup", { replace: true });
+      return;
+    }
+
+    navigate("/dashboard", { replace: true });
+  }, [isAuthenticated, navigate, organisations.length, organisationsLoading]);
 
   useEffect(() => {
     if (healthQuery.data) {
@@ -42,6 +63,10 @@ export function HomePage() {
       });
     }
   }, [healthQuery.isError]);
+
+  if (isAuthenticated && organisationsLoading) {
+    return <AuthLoadingScreen message="Loading your workspace..." />;
+  }
 
   return (
     <div className="space-y-8">
