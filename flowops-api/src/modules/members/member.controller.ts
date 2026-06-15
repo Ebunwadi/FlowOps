@@ -24,6 +24,17 @@ export const listOrganisationMembersController = asyncHandler(
   },
 );
 
+export const listOrganisationRolesController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const data = await memberService.listOrganisationRoles(req.params.id);
+
+    sendSuccess(res, {
+      data,
+      message: "Organisation roles retrieved successfully",
+    });
+  },
+);
+
 export const updateOrganisationMemberRoleController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const localUser = requireLocalUser(req);

@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { DashboardPage } from "@/pages/dashboard-page";
 import { HomePage } from "@/pages/home-page";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { OrganisationMembersPage } from "@/pages/organisation-members-page";
 import { OrganisationSetupPage } from "@/pages/organisation-setup-page";
 import { RequestsPage } from "@/pages/requests-page";
 import { SettingsPage } from "@/pages/settings-page";
@@ -45,6 +46,10 @@ export const router = createBrowserRouter([
               {
                 path: "settings",
                 element: <SettingsPage />,
+              },
+              {
+                path: "organisation/members",
+                element: <OrganisationMembersPage />,
               },
             ],
           },

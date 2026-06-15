@@ -4,6 +4,7 @@ import {
 } from "../../common/errors/httpErrors";
 import { recordAuditEvent } from "../audit-log/audit-log.service";
 import { DEFAULT_ROLE_NAMES } from "../roles/default-roles";
+import { findRolesByOrganisationId } from "../roles/role.repository";
 import { toOrganisationMemberResponse } from "./member.mapper";
 import {
   countActiveOwnersInOrganisation,
@@ -41,6 +42,10 @@ async function assertValidOrganisationRole(
   }
 
   return role;
+}
+
+export async function listOrganisationRoles(organisationId: string) {
+  return findRolesByOrganisationId(organisationId);
 }
 
 export async function listOrganisationMembers(organisationId: string) {

@@ -7,6 +7,7 @@ const protectedNavItems = [
   { label: "Dashboard", to: "/dashboard" },
   { label: "Workflows", to: "/workflows" },
   { label: "Requests", to: "/requests" },
+  { label: "Members", to: "/organisation/members" },
   { label: "Settings", to: "/settings" },
 ] as const;
 
