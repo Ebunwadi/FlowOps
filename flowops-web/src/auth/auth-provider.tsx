@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { AuthContext } from "@/auth/auth-context";
 import {
@@ -20,7 +21,6 @@ import {
   TOKEN_MIN_VALIDITY_SECONDS,
 } from "@/config/keycloak";
 import { clientLogger, setLoggerUserContext } from "@/lib/logger";
-import type { FlowOpsUserProfile } from "@/types/user";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -38,18 +38,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [initialized, setInitialized] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [profile, setProfile] = useState<FlowOpsUserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
   const syncAuthState = useCallback((authenticated: boolean) => {
     setIsAuthenticated(authenticated);
     setUser(authenticated ? mapKeycloakUser(keycloak) : null);
-
-    if (!authenticated) {
-      setProfile(null);
-      setProfileLoading(false);
-    }
   }, []);
 
   const getAccessToken = useCallback(async (): Promise<string | undefined> => {
@@ -156,59 +149,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoggerUserContext({});
   }, [user]);
 
+  const profileQuery = useQuery({
+    queryKey: ["auth", "me", user?.id],
+    queryFn: getCurrentUser,
+    enabled: initialized && isAuthenticated && Boolean(user?.id),
+  });
+
+  const profile = isAuthenticated ? profileQuery.data ?? null : null;
+  const profileLoading =
+    isAuthenticated && (profileQuery.isLoading || profileQuery.isFetching);
+
   useEffect(() => {
-    if (!initialized || !isAuthenticated) {
+    if (!profileQuery.data) {
       return;
     }
 
-    let cancelled = false;
+    clientLogger.info({
+      area: "auth",
+      event: "profile.loaded",
+      message: "FlowOps user profile loaded from API",
+      context: {
+        flowopsUserId: profileQuery.data.id,
+        email: profileQuery.data.email,
+      },
+    });
+  }, [profileQuery.data]);
 
-    setProfileLoading(true);
+  useEffect(() => {
+    if (!profileQuery.error) {
+      return;
+    }
 
-    getCurrentUser()
-      .then((nextProfile) => {
-        if (cancelled) {
-          return;
-        }
+    const message =
+      profileQuery.error instanceof Error
+        ? profileQuery.error.message
+        : "Unable to load user profile.";
 
-        setProfile(nextProfile);
-        clientLogger.info({
-          area: "auth",
-          event: "profile.loaded",
-          message: "FlowOps user profile loaded from API",
-          context: {
-            flowopsUserId: nextProfile.id,
-            email: nextProfile.email,
-          },
-        });
-      })
-      .catch((error: unknown) => {
-        if (cancelled) {
-          return;
-        }
-
-        setProfile(null);
-
-        const message =
-          error instanceof Error ? error.message : "Unable to load user profile.";
-
-        clientLogger.error({
-          area: "auth",
-          event: "profile.load_failed",
-          message: "Failed to load FlowOps user profile from API",
-          context: { reason: message },
-        });
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setProfileLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [initialized, isAuthenticated, user?.id]);
+    clientLogger.error({
+      area: "auth",
+      event: "profile.load_failed",
+      message: "Failed to load FlowOps user profile from API",
+      context: { reason: message },
+    });
+  }, [profileQuery.error]);
 
   const login = useCallback(async (returnPath?: string) => {
     await keycloak.login({

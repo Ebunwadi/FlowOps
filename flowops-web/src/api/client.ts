@@ -1,4 +1,5 @@
 import { getRegisteredAccessToken } from "@/auth/token-access";
+import { getRegisteredOrganisationId } from "@/auth/organisation-context-access";
 import { env } from "@/config/env";
 import { ApiClientError, type ApiResponse } from "@/types/api";
 
@@ -12,12 +13,14 @@ export async function apiClient<TData>(
 ): Promise<TData> {
   const { body, headers, ...rest } = options;
   const accessToken = await getRegisteredAccessToken();
+  const organisationId = getRegisteredOrganisationId();
 
   const response = await fetch(`${env.apiBaseUrl}${path}`, {
     ...rest,
     headers: {
       "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(organisationId ? { "x-organisation-id": organisationId } : {}),
       ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
