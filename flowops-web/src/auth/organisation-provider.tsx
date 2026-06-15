@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { listOrganisations } from "@/api/organisations";
+import { listOrganisations, getOrganisationAccess } from "@/api/organisations";
 import { useAuth } from "@/auth/use-auth";
 import { OrganisationContext } from "@/auth/organisation-context";
 import {
@@ -72,6 +72,12 @@ export function OrganisationProvider({ children }: OrganisationProviderProps) {
         : null,
     [isAuthenticated, organisations, selectedOrganisationId],
   );
+
+  const accessQuery = useQuery({
+    queryKey: ["organisations", currentOrganisation?.id, "access"],
+    queryFn: getOrganisationAccess,
+    enabled: isAuthenticated && Boolean(currentOrganisation?.id),
+  });
 
   useEffect(() => {
     if (currentOrganisation) {
@@ -138,10 +144,14 @@ export function OrganisationProvider({ children }: OrganisationProviderProps) {
       organisationsLoading: organisationsQuery.isLoading,
       organisationsError,
       currentOrganisation,
+      membershipAccess: accessQuery.data ?? null,
+      membershipAccessLoading: accessQuery.isLoading,
       setCurrentOrganisation,
       refreshOrganisations,
     }),
     [
+      accessQuery.data,
+      accessQuery.isLoading,
       currentOrganisation,
       organisations,
       organisationsError,

@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
 
-import { AuthenticationError } from "../../common/errors/httpErrors";
+import {
+  AuthenticationError,
+  AuthorizationError,
+} from "../../common/errors/httpErrors";
 import { asyncHandler } from "../../common/middleware/asyncHandler";
 import { sendSuccess } from "../../common/http/apiResponse";
 import * as organisationService from "./organisation.service";
@@ -39,6 +42,23 @@ export const getCurrentOrganisationController = asyncHandler(
     sendSuccess(res, {
       data,
       message: "Current organisation retrieved successfully",
+    });
+  },
+);
+
+export const getOrganisationAccessController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.membership) {
+      throw new AuthorizationError("Organisation context is required");
+    }
+
+    const data = await organisationService.getOrganisationAccessForMembership(
+      req.membership,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Organisation access retrieved successfully",
     });
   },
 );

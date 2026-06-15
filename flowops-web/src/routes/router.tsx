@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { OrganisationRequiredRoute } from "@/components/auth/organisation-required-route";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AuditLogsPage } from "@/pages/audit-logs-page";
 import { DashboardPage } from "@/pages/dashboard-page";
 import { HomePage } from "@/pages/home-page";
 import { NotFoundPage } from "@/pages/not-found-page";
@@ -46,6 +47,10 @@ export const router = createBrowserRouter([
               {
                 path: "settings",
                 element: <SettingsPage />,
+              },
+              {
+                path: "audit-logs",
+                element: <AuditLogsPage />,
               },
               {
                 path: "organisation/members",

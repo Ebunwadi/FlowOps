@@ -1,26 +1,35 @@
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "@/auth/use-auth";
+import { useOrganisation } from "@/auth/use-organisation";
+import { usePermissions } from "@/auth/use-permissions";
+import { PROTECTED_NAV_ITEMS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-
-const protectedNavItems = [
-  { label: "Dashboard", to: "/dashboard" },
-  { label: "Workflows", to: "/workflows" },
-  { label: "Requests", to: "/requests" },
-  { label: "Members", to: "/organisation/members" },
-  { label: "Settings", to: "/settings" },
-] as const;
 
 export function AppNav() {
   const { initialized, isAuthenticated } = useAuth();
+  const { currentOrganisation } = useOrganisation();
+  const { hasAnyPermission, membershipAccessLoading } = usePermissions();
 
-  if (!initialized || !isAuthenticated) {
+  if (!initialized || !isAuthenticated || !currentOrganisation) {
+    return null;
+  }
+
+  const visibleNavItems = PROTECTED_NAV_ITEMS.filter((item) => {
+    if (membershipAccessLoading) {
+      return false;
+    }
+
+    return hasAnyPermission(...item.permissions);
+  });
+
+  if (visibleNavItems.length === 0) {
     return null;
   }
 
   return (
     <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-1">
-      {protectedNavItems.map((item) => (
+      {visibleNavItems.map((item) => (
         <NavLink
           className={({ isActive }) =>
             cn(
