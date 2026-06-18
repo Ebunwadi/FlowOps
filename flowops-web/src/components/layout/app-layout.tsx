@@ -2,6 +2,7 @@ import { Link, Outlet } from "react-router-dom";
 
 import { AuthControls } from "@/components/auth/auth-controls";
 import { AppNav } from "@/components/layout/app-nav";
+import { OrganisationSwitcher } from "@/components/layout/organisation-switcher";
 
 export function AppLayout() {
   return (
@@ -9,13 +10,16 @@ export function AppLayout() {
       <header className="border-b">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-4">
           <div className="flex items-center justify-between gap-4">
-            <Link className="block" to="/">
+            <Link className="block shrink-0" to="/">
               <p className="text-lg font-semibold">FlowOps</p>
               <p className="text-sm text-muted-foreground">
                 Enterprise workflow automation platform
               </p>
             </Link>
-            <AuthControls />
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-4">
+              <OrganisationSwitcher />
+              <AuthControls />
+            </div>
           </div>
           <AppNav />
         </div>

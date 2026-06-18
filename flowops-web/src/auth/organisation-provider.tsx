@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -50,6 +51,9 @@ function resolveCurrentOrganisation(
 export function OrganisationProvider({ children }: OrganisationProviderProps) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const currentOrganisationIdRef = useRef<string | undefined>(
+    readStoredOrganisationId() ?? undefined,
+  );
   const [selectedOrganisationId, setSelectedOrganisationId] = useState<string | null>(
     () => readStoredOrganisationId(),
   );
@@ -91,6 +95,7 @@ export function OrganisationProvider({ children }: OrganisationProviderProps) {
   }, [currentOrganisation, isAuthenticated]);
 
   const setCurrentOrganisation = useCallback((organisation: OrganisationSummary) => {
+    currentOrganisationIdRef.current = organisation.id;
     setSelectedOrganisationId(organisation.id);
     writeStoredOrganisationId(organisation.id);
     clientLogger.info({
@@ -100,6 +105,7 @@ export function OrganisationProvider({ children }: OrganisationProviderProps) {
       context: {
         organisationId: organisation.id,
         organisationName: organisation.name,
+        organisationRole: organisation.role,
       },
     });
   }, []);
@@ -124,12 +130,16 @@ export function OrganisationProvider({ children }: OrganisationProviderProps) {
   }, [queryClient, selectedOrganisationId]);
 
   useEffect(() => {
-    registerOrganisationIdGetter(() => currentOrganisation?.id);
+    currentOrganisationIdRef.current = currentOrganisation?.id;
+  }, [currentOrganisation?.id]);
+
+  useEffect(() => {
+    registerOrganisationIdGetter(() => currentOrganisationIdRef.current);
 
     return () => {
       clearOrganisationIdGetter();
     };
-  }, [currentOrganisation?.id]);
+  }, []);
 
   const organisationsError =
     organisationsQuery.error instanceof Error
