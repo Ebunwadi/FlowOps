@@ -19,6 +19,7 @@ model User {
 
   organisationMemberships OrganisationMember[]
   createdOrganisations    Organisation[]       @relation("CreatedOrganisations")
+  createdWorkflowTemplates WorkflowTemplate[]  @relation("CreatedWorkflowTemplates")
 
   @@map("users")
 }
@@ -35,6 +36,7 @@ model Organisation {
   createdBy User                 @relation("CreatedOrganisations", fields: [createdById], references: [id])
   members   OrganisationMember[]
   roles     Role[]
+  workflowTemplates WorkflowTemplate[]
 
   @@index([createdById])
   @@map("organisations")
@@ -71,6 +73,7 @@ model Role {
   organisation Organisation?        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   members      OrganisationMember[]
   permissions  RolePermission[]
+  approvalSteps WorkflowStep[]
 
   @@unique([organisationId, name])
   @@map("roles")
@@ -104,4 +107,92 @@ enum MembershipStatus {
   ACTIVE
   INVITED
   SUSPENDED
+}
+
+enum WorkflowTemplateStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum WorkflowFieldType {
+  SHORT_TEXT
+  LONG_TEXT
+  NUMBER
+  DATE
+  DROPDOWN
+  CHECKBOX
+  RADIO
+  FILE_UPLOAD
+}
+
+/// Org-scoped workflow definition with dynamic form fields and approval steps.
+model WorkflowTemplate {
+  id             String                 @id @default(uuid())
+  organisationId String
+  name           String
+  description    String?
+  category       String?
+  status         WorkflowTemplateStatus @default(DRAFT)
+  isActive       Boolean                @default(false)
+  createdById    String
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  organisation Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy    User            @relation("CreatedWorkflowTemplates", fields: [createdById], references: [id])
+  fields       WorkflowField[]
+  steps        WorkflowStep[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId])
+  @@index([createdById])
+  @@map("workflow_templates")
+}
+
+/// Configurable input field on a workflow template submission form.
+model WorkflowField {
+  id                 String            @id @default(uuid())
+  workflowTemplateId String
+  label              String
+  fieldKey           String
+  fieldType          WorkflowFieldType
+  helpText           String?
+  placeholder        String?
+  isRequired         Boolean           @default(false)
+  options            Json?
+  validationRules    Json?
+  fieldOrder         Int
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowTemplateId, fieldKey])
+  @@index([workflowTemplateId])
+  @@map("workflow_fields")
+}
+
+/// Ordered approval step assigned to an organisation role on a workflow template.
+model WorkflowStep {
+  id                 String   @id @default(uuid())
+  workflowTemplateId String
+  name               String
+  description        String?
+  stepOrder          Int
+  approverRoleId     String
+  slaHours           Int?
+  allowDelegation    Boolean  @default(false)
+  condition          Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+  approverRole     Role             @relation(fields: [approverRoleId], references: [id])
+
+  @@unique([workflowTemplateId, stepOrder])
+  @@index([workflowTemplateId])
+  @@index([approverRoleId])
+  @@map("workflow_steps")
 }
