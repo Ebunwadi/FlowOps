@@ -13,6 +13,13 @@ export const WORKFLOW_FIELD_TYPES = [
   "FILE_UPLOAD",
 ] as const;
 
+export const WORKFLOW_TEMPLATE_STATUSES = [
+  "DRAFT",
+  "ACTIVE",
+  "INACTIVE",
+  "ARCHIVED",
+] as const;
+
 const workflowFieldKeySchema = z
   .string()
   .trim()
@@ -92,9 +99,18 @@ export const workflowTemplateParamsSchema = z.object({
   id: z.string().uuid(),
 });
 
+export const listWorkflowTemplatesQuerySchema = z.object({
+  search: z.string().trim().min(1).max(100).optional(),
+  status: z.enum(WORKFLOW_TEMPLATE_STATUSES).optional(),
+  category: z.string().trim().min(1).max(50).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+});
+
 export type CreateWorkflowTemplateBody = z.infer<typeof createWorkflowTemplateSchema>;
 export type UpdateWorkflowTemplateBody = z.infer<typeof updateWorkflowTemplateSchema>;
 export type WorkflowTemplateParams = z.infer<typeof workflowTemplateParamsSchema>;
+export type ListWorkflowTemplatesQuery = z.infer<typeof listWorkflowTemplatesQuerySchema>;
 export type WorkflowFieldInput = z.infer<typeof workflowFieldSchema>;
 export type WorkflowStepInput = z.infer<typeof workflowStepSchema>;
 

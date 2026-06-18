@@ -1,11 +1,20 @@
 import type { DbClient } from "../../common/types/database";
 import { prisma } from "../../config/database";
+import type { WorkflowTemplateStatus } from "../../generated/prisma/client";
 import type {
   WorkflowFieldInput,
   WorkflowStepInput,
 } from "./workflow-template.validation";
 import { toCreatedWorkflowTemplateSummary } from "./workflow-template.mapper";
 import type { CreatedWorkflowTemplateSummary } from "./workflow-template.mapper";
+
+export interface ListWorkflowTemplatesFilters {
+  search?: string;
+  status?: WorkflowTemplateStatus;
+  category?: string;
+  page: number;
+  limit: number;
+}
 
 export interface CreateWorkflowTemplateRecordInput {
   organisationId: string;
@@ -15,6 +24,74 @@ export interface CreateWorkflowTemplateRecordInput {
   category?: string;
   fields: WorkflowFieldInput[];
   steps: WorkflowStepInput[];
+}
+
+const workflowTemplateListSelect = {
+  id: true,
+  name: true,
+  description: true,
+  category: true,
+  status: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+  _count: {
+    select: {
+      fields: true,
+      steps: true,
+    },
+  },
+} as const;
+
+const workflowTemplateDetailInclude = {
+  fields: {
+    orderBy: {
+      fieldOrder: "asc" as const,
+    },
+  },
+  steps: {
+    orderBy: {
+      stepOrder: "asc" as const,
+    },
+    include: {
+      approverRole: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      },
+    },
+  },
+} as const;
+
+function buildWorkflowTemplateListWhere(
+  organisationId: string,
+  filters: Pick<ListWorkflowTemplatesFilters, "search" | "status" | "category">,
+) {
+  return {
+    organisationId,
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.category ? { category: filters.category } : {}),
+    ...(filters.search
+      ? {
+          OR: [
+            {
+              name: {
+                contains: filters.search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              description: {
+                contains: filters.search,
+                mode: "insensitive" as const,
+              },
+            },
+          ],
+        }
+      : {}),
+  };
 }
 
 export async function findWorkflowTemplateByNameInOrganisation(
@@ -30,6 +107,47 @@ export async function findWorkflowTemplateByNameInOrganisation(
     select: {
       id: true,
     },
+  });
+}
+
+export async function findWorkflowTemplatesByOrganisation(
+  organisationId: string,
+  filters: ListWorkflowTemplatesFilters,
+  db: DbClient = prisma,
+) {
+  const where = buildWorkflowTemplateListWhere(organisationId, filters);
+  const skip = (filters.page - 1) * filters.limit;
+
+  return db.workflowTemplate.findMany({
+    where,
+    select: workflowTemplateListSelect,
+    orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+    skip,
+    take: filters.limit,
+  });
+}
+
+export async function countWorkflowTemplatesByOrganisation(
+  organisationId: string,
+  filters: Pick<ListWorkflowTemplatesFilters, "search" | "status" | "category">,
+  db: DbClient = prisma,
+) {
+  return db.workflowTemplate.count({
+    where: buildWorkflowTemplateListWhere(organisationId, filters),
+  });
+}
+
+export async function findWorkflowTemplateByIdInOrganisation(
+  workflowTemplateId: string,
+  organisationId: string,
+  db: DbClient = prisma,
+) {
+  return db.workflowTemplate.findFirst({
+    where: {
+      id: workflowTemplateId,
+      organisationId,
+    },
+    include: workflowTemplateDetailInclude,
   });
 }
 
