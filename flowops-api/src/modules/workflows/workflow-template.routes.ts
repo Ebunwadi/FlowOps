@@ -9,10 +9,12 @@ import {
   createWorkflowTemplateController,
   getWorkflowTemplateByIdController,
   listWorkflowTemplatesController,
+  updateWorkflowTemplateController,
 } from "./workflow-template.controller";
 import {
   createWorkflowTemplateSchema,
   listWorkflowTemplatesQuerySchema,
+  updateWorkflowTemplateSchema,
   workflowTemplateParamsSchema,
 } from "./workflow-template.validation";
 
@@ -42,4 +44,15 @@ workflowTemplateRouter.get(
   requirePermission("workflows:view"),
   validateRequest({ params: workflowTemplateParamsSchema }),
   getWorkflowTemplateByIdController,
+);
+
+workflowTemplateRouter.patch(
+  "/:id",
+  ensureOrganisationContext,
+  requirePermission("workflows:update"),
+  validateRequest({
+    params: workflowTemplateParamsSchema,
+    body: updateWorkflowTemplateSchema,
+  }),
+  updateWorkflowTemplateController,
 );

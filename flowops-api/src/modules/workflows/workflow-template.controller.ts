@@ -73,3 +73,19 @@ export const getWorkflowTemplateByIdController = asyncHandler(
     });
   },
 );
+
+export const updateWorkflowTemplateController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const organisation = requireOrganisation(req);
+    const data = await workflowTemplateService.updateWorkflowTemplate(
+      organisation.id,
+      req.params.id,
+      req.body,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow template updated successfully",
+    });
+  },
+);

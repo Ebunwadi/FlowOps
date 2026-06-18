@@ -4,6 +4,7 @@ import {
   createWorkflowTemplate,
   getWorkflowTemplateById,
   listWorkflowTemplates,
+  updateWorkflowTemplate,
 } from "../src/modules/workflows/workflow-template.service";
 import * as workflowTemplateRepository from "../src/modules/workflows/workflow-template.repository";
 import * as roleRepository from "../src/modules/roles/role.repository";
@@ -264,6 +265,125 @@ describe("workflow template service", () => {
 
       await expect(
         getWorkflowTemplateById(organisationId, createdTemplate.id),
+      ).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe("updateWorkflowTemplate", () => {
+    const templateDetail = {
+      id: createdTemplate.id,
+      organisationId,
+      name: createdTemplate.name,
+      description: createInput.description ?? null,
+      category: createInput.category ?? null,
+      status: createdTemplate.status,
+      isActive: createdTemplate.isActive,
+      createdById,
+      createdAt: new Date("2026-06-18T12:00:00.000Z"),
+      updatedAt: new Date("2026-06-18T13:00:00.000Z"),
+      fields: [
+        {
+          id: "field-1",
+          workflowTemplateId: createdTemplate.id,
+          label: "Updated item",
+          fieldKey: "item_requested",
+          fieldType: "SHORT_TEXT" as const,
+          helpText: null,
+          placeholder: null,
+          isRequired: true,
+          options: null,
+          validationRules: null,
+          fieldOrder: 1,
+          createdAt: new Date("2026-06-18T13:00:00.000Z"),
+          updatedAt: new Date("2026-06-18T13:00:00.000Z"),
+        },
+      ],
+      steps: [
+        {
+          id: "step-1",
+          workflowTemplateId: createdTemplate.id,
+          name: "Manager Approval",
+          description: null,
+          stepOrder: 1,
+          approverRoleId: managerRoleId,
+          slaHours: 48,
+          allowDelegation: true,
+          condition: null,
+          createdAt: new Date("2026-06-18T13:00:00.000Z"),
+          updatedAt: new Date("2026-06-18T13:00:00.000Z"),
+          approverRole: {
+            id: managerRoleId,
+            name: "Manager",
+            description: "Team manager",
+          },
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateByIdInOrganisation)
+        .mockResolvedValue(templateDetail);
+      jest
+        .mocked(workflowTemplateRepository.updateWorkflowTemplateWithRelations)
+        .mockResolvedValue(templateDetail);
+    });
+
+    it("updates template details and replaces fields and steps", async () => {
+      const result = await updateWorkflowTemplate(organisationId, createdTemplate.id, {
+        name: "Updated equipment request",
+        fields: createInput.fields,
+        steps: createInput.steps,
+      });
+
+      expect(result.name).toBe(createdTemplate.name);
+      expect(
+        workflowTemplateRepository.updateWorkflowTemplateWithRelations,
+      ).toHaveBeenCalledWith(
+        {
+          workflowTemplateId: createdTemplate.id,
+          organisationId,
+          name: "Updated equipment request",
+          description: undefined,
+          category: undefined,
+          fields: createInput.fields,
+          steps: createInput.steps,
+        },
+        expect.anything(),
+      );
+    });
+
+    it("throws when the template does not belong to the organisation", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateByIdInOrganisation)
+        .mockResolvedValue(null);
+
+      await expect(
+        updateWorkflowTemplate(organisationId, createdTemplate.id, {
+          name: "Updated equipment request",
+        }),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it("throws when the updated name already exists in the organisation", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateByNameInOrganisation)
+        .mockResolvedValue({ id: "other-template-id" });
+
+      await expect(
+        updateWorkflowTemplate(organisationId, createdTemplate.id, {
+          name: "Duplicate name",
+        }),
+      ).rejects.toThrow(ConflictError);
+    });
+
+    it("throws when an approver role does not belong to the organisation", async () => {
+      jest.mocked(roleRepository.findRolesByIdsInOrganisation).mockResolvedValue([]);
+
+      await expect(
+        updateWorkflowTemplate(organisationId, createdTemplate.id, {
+          steps: createInput.steps,
+        }),
       ).rejects.toThrow(NotFoundError);
     });
   });
