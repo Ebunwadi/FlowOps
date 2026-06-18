@@ -12,6 +12,7 @@ import {
   findWorkflowTemplateByIdInOrganisation,
   findWorkflowTemplateByNameInOrganisation,
   findWorkflowTemplatesByOrganisation,
+  updateWorkflowTemplateWithRelations,
 } from "./workflow-template.repository";
 import type { CreatedWorkflowTemplateSummary } from "./workflow-template.mapper";
 import {
@@ -25,7 +26,25 @@ import {
   assertUniqueWorkflowSteps,
   type CreateWorkflowTemplateBody,
   type ListWorkflowTemplatesQuery,
+  type UpdateWorkflowTemplateBody,
 } from "./workflow-template.validation";
+
+async function assertApproverRolesBelongToOrganisation(
+  organisationId: string,
+  steps: Array<{ approverRoleId: string }>,
+): Promise<void> {
+  const approverRoleIds = [...new Set(steps.map((step) => step.approverRoleId))];
+  const organisationRoles = await findRolesByIdsInOrganisation(
+    organisationId,
+    approverRoleIds,
+  );
+
+  if (organisationRoles.length !== approverRoleIds.length) {
+    throw new NotFoundError(
+      "One or more approver roles were not found in this organisation",
+    );
+  }
+}
 
 export async function createWorkflowTemplate(
   organisationId: string,
@@ -46,17 +65,7 @@ export async function createWorkflowTemplate(
     );
   }
 
-  const approverRoleIds = [...new Set(input.steps.map((step) => step.approverRoleId))];
-  const organisationRoles = await findRolesByIdsInOrganisation(
-    organisationId,
-    approverRoleIds,
-  );
-
-  if (organisationRoles.length !== approverRoleIds.length) {
-    throw new NotFoundError(
-      "One or more approver roles were not found in this organisation",
-    );
-  }
+  await assertApproverRolesBelongToOrganisation(organisationId, input.steps);
 
   try {
     const template = await prisma.$transaction(async (tx) =>
@@ -141,4 +150,88 @@ export async function getWorkflowTemplateById(
   }
 
   return toWorkflowTemplateDetailResponse(template);
+}
+
+export async function updateWorkflowTemplate(
+  organisationId: string,
+  workflowTemplateId: string,
+  input: UpdateWorkflowTemplateBody,
+): Promise<WorkflowTemplateDetailResponse> {
+  const existingTemplate = await findWorkflowTemplateByIdInOrganisation(
+    workflowTemplateId,
+    organisationId,
+  );
+
+  if (!existingTemplate) {
+    throw new NotFoundError("Workflow template not found");
+  }
+
+  if (input.fields) {
+    assertUniqueWorkflowFields(input.fields);
+  }
+
+  if (input.steps) {
+    assertUniqueWorkflowSteps(input.steps);
+  }
+
+  if (input.name) {
+    const duplicateTemplate = await findWorkflowTemplateByNameInOrganisation(
+      organisationId,
+      input.name,
+      workflowTemplateId,
+    );
+
+    if (duplicateTemplate) {
+      throw new ConflictError(
+        "A workflow template with this name already exists in this organisation",
+      );
+    }
+  }
+
+  if (input.steps) {
+    await assertApproverRolesBelongToOrganisation(organisationId, input.steps);
+  }
+
+  try {
+    const updatedTemplate = await prisma.$transaction(async (tx) =>
+      updateWorkflowTemplateWithRelations(
+        {
+          workflowTemplateId,
+          organisationId,
+          name: input.name,
+          description: input.description,
+          category: input.category,
+          fields: input.fields,
+          steps: input.steps,
+        },
+        tx,
+      ),
+    );
+
+    if (!updatedTemplate) {
+      throw new NotFoundError("Workflow template not found");
+    }
+
+    logger.info(
+      {
+        origin: "api",
+        event: "workflow_template.updated",
+        organisationId,
+        workflowTemplateId,
+        replacedFields: input.fields !== undefined,
+        replacedSteps: input.steps !== undefined,
+      },
+      `[API] Workflow template "${updatedTemplate.name}" updated`,
+    );
+
+    return toWorkflowTemplateDetailResponse(updatedTemplate);
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      throw new ConflictError(
+        "A workflow template with this name already exists in this organisation",
+      );
+    }
+
+    throw error;
+  }
 }

@@ -26,6 +26,42 @@ export interface CreateWorkflowTemplateRecordInput {
   steps: WorkflowStepInput[];
 }
 
+export interface UpdateWorkflowTemplateRecordInput {
+  workflowTemplateId: string;
+  organisationId: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  fields?: WorkflowFieldInput[];
+  steps?: WorkflowStepInput[];
+}
+
+function mapFieldCreateData(field: WorkflowFieldInput) {
+  return {
+    label: field.label,
+    fieldKey: field.fieldKey,
+    fieldType: field.fieldType,
+    helpText: field.helpText,
+    placeholder: field.placeholder,
+    isRequired: field.isRequired,
+    options: field.options,
+    validationRules: field.validationRules,
+    fieldOrder: field.fieldOrder,
+  };
+}
+
+function mapStepCreateData(step: WorkflowStepInput) {
+  return {
+    name: step.name,
+    description: step.description,
+    stepOrder: step.stepOrder,
+    approverRoleId: step.approverRoleId,
+    slaHours: step.slaHours,
+    allowDelegation: step.allowDelegation,
+    condition: step.condition,
+  };
+}
+
 const workflowTemplateListSelect = {
   id: true,
   name: true,
@@ -97,12 +133,16 @@ function buildWorkflowTemplateListWhere(
 export async function findWorkflowTemplateByNameInOrganisation(
   organisationId: string,
   name: string,
+  excludeWorkflowTemplateId?: string,
   db: DbClient = prisma,
 ) {
   return db.workflowTemplate.findFirst({
     where: {
       organisationId,
       name,
+      ...(excludeWorkflowTemplateId
+        ? { id: { not: excludeWorkflowTemplateId } }
+        : {}),
     },
     select: {
       id: true,
@@ -163,28 +203,10 @@ export async function createWorkflowTemplateWithRelations(
       category: input.category,
       createdById: input.createdById,
       fields: {
-        create: input.fields.map((field) => ({
-          label: field.label,
-          fieldKey: field.fieldKey,
-          fieldType: field.fieldType,
-          helpText: field.helpText,
-          placeholder: field.placeholder,
-          isRequired: field.isRequired,
-          options: field.options,
-          validationRules: field.validationRules,
-          fieldOrder: field.fieldOrder,
-        })),
+        create: input.fields.map((field) => mapFieldCreateData(field)),
       },
       steps: {
-        create: input.steps.map((step) => ({
-          name: step.name,
-          description: step.description,
-          stepOrder: step.stepOrder,
-          approverRoleId: step.approverRoleId,
-          slaHours: step.slaHours,
-          allowDelegation: step.allowDelegation,
-          condition: step.condition,
-        })),
+        create: input.steps.map((step) => mapStepCreateData(step)),
       },
     },
     select: {
@@ -202,4 +224,68 @@ export async function createWorkflowTemplateWithRelations(
   });
 
   return toCreatedWorkflowTemplateSummary(template);
+}
+
+export async function updateWorkflowTemplateWithRelations(
+  input: UpdateWorkflowTemplateRecordInput,
+  db: DbClient,
+) {
+  const existingTemplate = await db.workflowTemplate.findFirst({
+    where: {
+      id: input.workflowTemplateId,
+      organisationId: input.organisationId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!existingTemplate) {
+    return null;
+  }
+
+  await db.workflowTemplate.update({
+    where: { id: input.workflowTemplateId },
+    data: {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.category !== undefined ? { category: input.category } : {}),
+    },
+  });
+
+  if (input.fields) {
+    await db.workflowField.deleteMany({
+      where: { workflowTemplateId: input.workflowTemplateId },
+    });
+
+    if (input.fields.length > 0) {
+      await db.workflowField.createMany({
+        data: input.fields.map((field) => ({
+          workflowTemplateId: input.workflowTemplateId,
+          ...mapFieldCreateData(field),
+        })),
+      });
+    }
+  }
+
+  if (input.steps) {
+    await db.workflowStep.deleteMany({
+      where: { workflowTemplateId: input.workflowTemplateId },
+    });
+
+    if (input.steps.length > 0) {
+      await db.workflowStep.createMany({
+        data: input.steps.map((step) => ({
+          workflowTemplateId: input.workflowTemplateId,
+          ...mapStepCreateData(step),
+        })),
+      });
+    }
+  }
+
+  return findWorkflowTemplateByIdInOrganisation(
+    input.workflowTemplateId,
+    input.organisationId,
+    db,
+  );
 }
