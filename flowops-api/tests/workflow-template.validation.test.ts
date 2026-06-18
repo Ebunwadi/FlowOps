@@ -2,6 +2,7 @@ import {
   assertUniqueWorkflowFields,
   assertUniqueWorkflowSteps,
   createWorkflowTemplateSchema,
+  listWorkflowTemplatesQuerySchema,
   updateWorkflowTemplateSchema,
 } from "../src/modules/workflows/workflow-template.validation";
 import { ValidationError } from "../src/common/errors/httpErrors";
@@ -137,6 +138,34 @@ describe("createWorkflowTemplateSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("listWorkflowTemplatesQuerySchema", () => {
+  it("accepts pagination and filter query params", () => {
+    const result = listWorkflowTemplatesQuerySchema.safeParse({
+      search: "equipment",
+      status: "DRAFT",
+      category: "IT",
+      page: "2",
+      limit: "10",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.page).toBe(2);
+      expect(result.data.limit).toBe(10);
+    }
+  });
+
+  it("defaults pagination values", () => {
+    const result = listWorkflowTemplatesQuerySchema.safeParse({});
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.page).toBe(1);
+      expect(result.data.limit).toBe(20);
+    }
   });
 });
 
