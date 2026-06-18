@@ -46,3 +46,24 @@ export async function findRolesByOrganisationId(
     orderBy: { name: "asc" },
   });
 }
+
+export async function findRolesByIdsInOrganisation(
+  organisationId: string,
+  roleIds: string[],
+  db: DbClient = prisma,
+) {
+  if (roleIds.length === 0) {
+    return [];
+  }
+
+  return db.role.findMany({
+    where: {
+      organisationId,
+      id: { in: roleIds },
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+}
