@@ -1,6 +1,8 @@
 import { apiClient } from "@/api/client";
 import type {
+  CreatedWorkflowTemplateSummary,
   PaginatedWorkflowTemplatesResponse,
+  WorkflowTemplateDetail,
   WorkflowTemplateStatus,
   WorkflowTemplateStatusResponse,
 } from "@/types/workflow-template";
@@ -73,4 +75,19 @@ export function archiveWorkflowTemplate(
     `/workflow-templates/${workflowTemplateId}/archive`,
     { method: "PATCH" },
   );
+}
+
+export function getWorkflowTemplateById(
+  workflowTemplateId: string,
+): Promise<WorkflowTemplateDetail> {
+  return apiClient<WorkflowTemplateDetail>(`/workflow-templates/${workflowTemplateId}`);
+}
+
+export function createWorkflowTemplate(
+  body: unknown,
+): Promise<CreatedWorkflowTemplateSummary> {
+  return apiClient<CreatedWorkflowTemplateSummary>("/workflow-templates", {
+    method: "POST",
+    body,
+  });
 }
