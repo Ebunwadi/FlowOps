@@ -30,7 +30,8 @@ export async function apiClient<TData>(
 
   if (!response.ok || payload.success !== true) {
     const message = payload.success === false ? payload.message : "Request failed";
-    throw new ApiClientError(message, response.status);
+    const fieldErrors = payload.success === false ? (payload.errors ?? []) : [];
+    throw new ApiClientError(message, response.status, fieldErrors);
   }
 
   return payload.data;

@@ -12,12 +12,19 @@ export interface ApiErrorResponse {
 
 export type ApiResponse<TData> = ApiSuccessResponse<TData> | ApiErrorResponse;
 
+export interface ApiFieldError {
+  field: string;
+  message: string;
+}
+
 export class ApiClientError extends Error {
   readonly status: number;
+  readonly fieldErrors: ApiFieldError[];
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, fieldErrors: ApiFieldError[] = []) {
     super(message);
     this.name = "ApiClientError";
     this.status = status;
+    this.fieldErrors = fieldErrors;
   }
 }
