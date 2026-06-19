@@ -13,6 +13,7 @@ import { RequestsPage } from "@/pages/requests-page";
 import { SettingsPage } from "@/pages/settings-page";
 import { WorkflowsPage } from "@/pages/workflows-page";
 import { CreateWorkflowTemplatePage } from "@/pages/create-workflow-template-page";
+import { EditWorkflowTemplatePage } from "@/pages/edit-workflow-template-page";
 import { WorkflowTemplateDetailPage } from "@/pages/workflow-template-detail-page";
 
 export const router = createBrowserRouter([
@@ -45,6 +46,10 @@ export const router = createBrowserRouter([
               {
                 path: "workflows/new",
                 element: <CreateWorkflowTemplatePage />,
+              },
+              {
+                path: "workflows/:id/edit",
+                element: <EditWorkflowTemplatePage />,
               },
               {
                 path: "workflows/:id",

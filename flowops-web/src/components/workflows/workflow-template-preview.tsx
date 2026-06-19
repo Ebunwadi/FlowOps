@@ -9,18 +9,20 @@ import {
   type CreateWorkflowTemplateFormValues,
 } from "@/schemas/workflow-template.schema";
 import type { OrganisationRole } from "@/types/member";
+import type { WorkflowTemplateStatus } from "@/types/workflow-template";
 
 import { WorkflowTemplateStatusBadge } from "./workflow-template-status-badge";
 
 interface WorkflowTemplatePreviewProps {
   roles: OrganisationRole[];
+  previewStatus?: WorkflowTemplateStatus;
 }
 
 function getRoleName(roles: OrganisationRole[], roleId: string): string {
   return roles.find((role) => role.id === roleId)?.name ?? "Unassigned role";
 }
 
-export function WorkflowTemplatePreview({ roles }: WorkflowTemplatePreviewProps) {
+export function WorkflowTemplatePreview({ roles, previewStatus = "DRAFT" }: WorkflowTemplatePreviewProps) {
   const { watch } = useFormContext<CreateWorkflowTemplateFormValues>();
 
   const name = watch("name");
@@ -43,7 +45,7 @@ export function WorkflowTemplatePreview({ roles }: WorkflowTemplatePreviewProps)
               </p>
             ) : null}
           </div>
-          <WorkflowTemplateStatusBadge status="DRAFT" />
+          <WorkflowTemplateStatusBadge status={previewStatus} />
         </div>
         {description?.trim() ? (
           <p className="mt-3 text-sm text-muted-foreground">{description}</p>

@@ -91,3 +91,13 @@ export function createWorkflowTemplate(
     body,
   });
 }
+
+export function updateWorkflowTemplate(
+  workflowTemplateId: string,
+  body: unknown,
+): Promise<WorkflowTemplateDetail> {
+  return apiClient<WorkflowTemplateDetail>(`/workflow-templates/${workflowTemplateId}`, {
+    method: "PATCH",
+    body,
+  });
+}

@@ -3,7 +3,10 @@ import { useMutation } from "@tanstack/react-query";
 import { FormProvider, useForm, type FieldPath } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
-import { createWorkflowTemplate } from "@/api/workflow-templates";
+import {
+  createWorkflowTemplate,
+  updateWorkflowTemplate,
+} from "@/api/workflow-templates";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +24,7 @@ import {
 } from "@/schemas/workflow-template.schema";
 import { ApiClientError } from "@/types/api";
 import type { OrganisationRole } from "@/types/member";
+import type { WorkflowTemplateStatus } from "@/types/workflow-template";
 
 import { WorkflowFieldsBuilder } from "./workflow-fields-builder";
 import { WorkflowStepsBuilder } from "./workflow-steps-builder";
@@ -28,19 +32,30 @@ import { WorkflowTemplateBasicDetails } from "./workflow-template-basic-details"
 import { WorkflowTemplatePreview } from "./workflow-template-preview";
 
 interface WorkflowTemplateFormProps {
+  mode: "create" | "edit";
+  templateId?: string;
+  initialValues?: CreateWorkflowTemplateFormValues;
+  previewStatus?: WorkflowTemplateStatus;
   roles: OrganisationRole[];
   rolesLoading: boolean;
+  cancelTo: string;
 }
 
 export function WorkflowTemplateForm({
+  mode,
+  templateId,
+  initialValues,
+  previewStatus = "DRAFT",
   roles,
   rolesLoading,
+  cancelTo,
 }: WorkflowTemplateFormProps) {
   const navigate = useNavigate();
+  const isEdit = mode === "edit";
 
   const form = useForm<CreateWorkflowTemplateFormValues>({
     resolver: zodResolver(createWorkflowTemplateSchema),
-    defaultValues: {
+    defaultValues: initialValues ?? {
       name: "",
       description: "",
       category: "",
@@ -50,29 +65,36 @@ export function WorkflowTemplateForm({
     mode: "onSubmit",
   });
 
-  const createMutation = useMutation({
-    mutationFn: (values: CreateWorkflowTemplateFormValues) =>
-      createWorkflowTemplate(toCreateWorkflowTemplatePayload(values)),
+  const submitMutation = useMutation({
+    mutationFn: (values: CreateWorkflowTemplateFormValues) => {
+      const payload = toCreateWorkflowTemplatePayload(values);
+
+      if (isEdit && templateId) {
+        return updateWorkflowTemplate(templateId, payload);
+      }
+
+      return createWorkflowTemplate(payload);
+    },
     onSuccess: (template) => {
       navigate(`/workflows/${template.id}`, {
         replace: true,
-        state: { created: true },
+        state: isEdit ? { updated: true } : { created: true },
       });
     },
   });
 
   const submitError =
-    createMutation.error instanceof ApiClientError
-      ? createMutation.error.message
-      : createMutation.error instanceof Error
-        ? createMutation.error.message
+    submitMutation.error instanceof ApiClientError
+      ? submitMutation.error.message
+      : submitMutation.error instanceof Error
+        ? submitMutation.error.message
         : null;
 
   const onSubmit = form.handleSubmit(async (values) => {
-    createMutation.reset();
+    submitMutation.reset();
 
     try {
-      await createMutation.mutateAsync(values);
+      await submitMutation.mutateAsync(values);
     } catch (error) {
       if (error instanceof ApiClientError) {
         error.fieldErrors.forEach(({ field, message }) => {
@@ -135,7 +157,7 @@ export function WorkflowTemplateForm({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <WorkflowTemplatePreview roles={roles} />
+                <WorkflowTemplatePreview previewStatus={previewStatus} roles={roles} />
               </CardContent>
             </Card>
           </div>
@@ -148,23 +170,31 @@ export function WorkflowTemplateForm({
                 <p className="text-sm text-red-600">{submitError}</p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Templates are saved as drafts until activated.
+                  {isEdit
+                    ? "Save your changes to update this workflow template."
+                    : "Templates are saved as drafts until activated."}
                 </p>
               )}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
-                disabled={createMutation.isPending}
+                disabled={submitMutation.isPending}
                 onClick={() => {
-                  navigate("/workflows");
+                  navigate(cancelTo);
                 }}
                 type="button"
                 variant="outline"
               >
                 Cancel
               </Button>
-              <Button disabled={createMutation.isPending} type="submit">
-                {createMutation.isPending ? "Creating…" : "Create workflow"}
+              <Button disabled={submitMutation.isPending} type="submit">
+                {submitMutation.isPending
+                  ? isEdit
+                    ? "Saving…"
+                    : "Creating…"
+                  : isEdit
+                    ? "Save changes"
+                    : "Create workflow"}
               </Button>
             </div>
           </div>
