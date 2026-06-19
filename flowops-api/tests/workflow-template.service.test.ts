@@ -11,9 +11,20 @@ import {
 } from "../src/modules/workflows/workflow-template.service";
 import * as workflowTemplateRepository from "../src/modules/workflows/workflow-template.repository";
 import * as roleRepository from "../src/modules/roles/role.repository";
+import { recordWorkflowTemplateAuditEvent, WORKFLOW_TEMPLATE_AUDIT_ACTIONS } from "../src/modules/workflows/workflow-template.audit";
 
 jest.mock("../src/modules/workflows/workflow-template.repository");
 jest.mock("../src/modules/roles/role.repository");
+jest.mock("../src/modules/workflows/workflow-template.audit", () => ({
+  recordWorkflowTemplateAuditEvent: jest.fn(),
+  WORKFLOW_TEMPLATE_AUDIT_ACTIONS: {
+    CREATED: "WORKFLOW_TEMPLATE_CREATED",
+    UPDATED: "WORKFLOW_TEMPLATE_UPDATED",
+    ACTIVATED: "WORKFLOW_TEMPLATE_ACTIVATED",
+    DEACTIVATED: "WORKFLOW_TEMPLATE_DEACTIVATED",
+    ARCHIVED: "WORKFLOW_TEMPLATE_ARCHIVED",
+  },
+}));
 jest.mock("../src/config/database", () => ({
   prisma: {
     $transaction: jest.fn(),
@@ -112,6 +123,18 @@ describe("workflow template service", () => {
       organisationId,
       [managerRoleId, itRoleId],
     );
+    expect(recordWorkflowTemplateAuditEvent).toHaveBeenCalledWith({
+      action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.CREATED,
+      organisationId,
+      actorUserId: createdById,
+      entityId: createdTemplate.id,
+      metadata: {
+        templateName: createdTemplate.name,
+        status: createdTemplate.status,
+        fieldsCount: createdTemplate.fieldsCount,
+        stepsCount: createdTemplate.stepsCount,
+      },
+    });
   });
 
   it("throws when the template name already exists in the organisation", async () => {
@@ -333,7 +356,7 @@ describe("workflow template service", () => {
     });
 
     it("updates template details and replaces fields and steps", async () => {
-      const result = await updateWorkflowTemplate(organisationId, createdTemplate.id, {
+      const result = await updateWorkflowTemplate(organisationId, createdTemplate.id, createdById, {
         name: "Updated equipment request",
         fields: createInput.fields,
         steps: createInput.steps,
@@ -354,6 +377,18 @@ describe("workflow template service", () => {
         },
         expect.anything(),
       );
+      expect(recordWorkflowTemplateAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.UPDATED,
+          organisationId,
+          actorUserId: createdById,
+          entityId: createdTemplate.id,
+          metadata: expect.objectContaining({
+            templateName: createdTemplate.name,
+            status: createdTemplate.status,
+          }),
+        }),
+      );
     });
 
     it("throws when the template does not belong to the organisation", async () => {
@@ -362,7 +397,7 @@ describe("workflow template service", () => {
         .mockResolvedValue(null);
 
       await expect(
-        updateWorkflowTemplate(organisationId, createdTemplate.id, {
+        updateWorkflowTemplate(organisationId, createdTemplate.id, createdById, {
           name: "Updated equipment request",
         }),
       ).rejects.toThrow(NotFoundError);
@@ -374,7 +409,7 @@ describe("workflow template service", () => {
         .mockResolvedValue({ id: "other-template-id" });
 
       await expect(
-        updateWorkflowTemplate(organisationId, createdTemplate.id, {
+        updateWorkflowTemplate(organisationId, createdTemplate.id, createdById, {
           name: "Duplicate name",
         }),
       ).rejects.toThrow(ConflictError);
@@ -384,7 +419,7 @@ describe("workflow template service", () => {
       jest.mocked(roleRepository.findRolesByIdsInOrganisation).mockResolvedValue([]);
 
       await expect(
-        updateWorkflowTemplate(organisationId, createdTemplate.id, {
+        updateWorkflowTemplate(organisationId, createdTemplate.id, createdById, {
           steps: createInput.steps,
         }),
       ).rejects.toThrow(NotFoundError);
@@ -413,13 +448,24 @@ describe("workflow template service", () => {
     });
 
     it("activates a draft template with fields and steps", async () => {
-      const result = await activateWorkflowTemplate(organisationId, createdTemplate.id);
+      const result = await activateWorkflowTemplate(organisationId, createdTemplate.id, createdById);
 
       expect(result.status).toBe("ACTIVE");
       expect(result.isActive).toBe(true);
       expect(workflowTemplateRepository.updateWorkflowTemplateStatus).toHaveBeenCalledWith(
         createdTemplate.id,
         { status: "ACTIVE", isActive: true },
+      );
+      expect(recordWorkflowTemplateAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.ACTIVATED,
+          actorUserId: createdById,
+          metadata: expect.objectContaining({
+            templateName: createdTemplate.name,
+            status: "ACTIVE",
+            previousStatus: "DRAFT",
+          }),
+        }),
       );
     });
 
@@ -431,7 +477,7 @@ describe("workflow template service", () => {
           status: "INACTIVE",
         });
 
-      const result = await activateWorkflowTemplate(organisationId, createdTemplate.id);
+      const result = await activateWorkflowTemplate(organisationId, createdTemplate.id, createdById);
 
       expect(result.status).toBe("ACTIVE");
     });
@@ -445,7 +491,7 @@ describe("workflow template service", () => {
         });
 
       await expect(
-        activateWorkflowTemplate(organisationId, createdTemplate.id),
+        activateWorkflowTemplate(organisationId, createdTemplate.id, createdById),
       ).rejects.toThrow(ValidationError);
     });
   });
@@ -468,10 +514,16 @@ describe("workflow template service", () => {
         isActive: false,
       });
 
-      const result = await deactivateWorkflowTemplate(organisationId, createdTemplate.id);
+      const result = await deactivateWorkflowTemplate(organisationId, createdTemplate.id, createdById);
 
       expect(result.status).toBe("INACTIVE");
       expect(result.isActive).toBe(false);
+      expect(recordWorkflowTemplateAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.DEACTIVATED,
+          actorUserId: createdById,
+        }),
+      );
     });
 
     it("throws when the template is not active", async () => {
@@ -486,7 +538,7 @@ describe("workflow template service", () => {
         });
 
       await expect(
-        deactivateWorkflowTemplate(organisationId, createdTemplate.id),
+        deactivateWorkflowTemplate(organisationId, createdTemplate.id, createdById),
       ).rejects.toThrow(ConflictError);
     });
   });
@@ -509,10 +561,16 @@ describe("workflow template service", () => {
         isActive: false,
       });
 
-      const result = await archiveWorkflowTemplate(organisationId, createdTemplate.id);
+      const result = await archiveWorkflowTemplate(organisationId, createdTemplate.id, createdById);
 
       expect(result.status).toBe("ARCHIVED");
       expect(result.isActive).toBe(false);
+      expect(recordWorkflowTemplateAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.ARCHIVED,
+          actorUserId: createdById,
+        }),
+      );
     });
 
     it("throws when the template is already archived", async () => {
@@ -527,7 +585,7 @@ describe("workflow template service", () => {
         });
 
       await expect(
-        archiveWorkflowTemplate(organisationId, createdTemplate.id),
+        archiveWorkflowTemplate(organisationId, createdTemplate.id, createdById),
       ).rejects.toThrow(ConflictError);
     });
   });

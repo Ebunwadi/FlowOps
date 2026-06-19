@@ -76,10 +76,12 @@ export const getWorkflowTemplateByIdController = asyncHandler(
 
 export const updateWorkflowTemplateController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
     const organisation = requireOrganisation(req);
     const data = await workflowTemplateService.updateWorkflowTemplate(
       organisation.id,
       req.params.id,
+      localUser.id,
       req.body,
     );
 
@@ -92,10 +94,12 @@ export const updateWorkflowTemplateController = asyncHandler(
 
 export const activateWorkflowTemplateController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
     const organisation = requireOrganisation(req);
     const data = await workflowTemplateService.activateWorkflowTemplate(
       organisation.id,
       req.params.id,
+      localUser.id,
     );
 
     sendSuccess(res, {
@@ -107,10 +111,12 @@ export const activateWorkflowTemplateController = asyncHandler(
 
 export const deactivateWorkflowTemplateController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
     const organisation = requireOrganisation(req);
     const data = await workflowTemplateService.deactivateWorkflowTemplate(
       organisation.id,
       req.params.id,
+      localUser.id,
     );
 
     sendSuccess(res, {
@@ -122,10 +128,12 @@ export const deactivateWorkflowTemplateController = asyncHandler(
 
 export const archiveWorkflowTemplateController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
     const organisation = requireOrganisation(req);
     const data = await workflowTemplateService.archiveWorkflowTemplate(
       organisation.id,
       req.params.id,
+      localUser.id,
     );
 
     sendSuccess(res, {
