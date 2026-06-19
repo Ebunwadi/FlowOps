@@ -6,6 +6,7 @@ import {
 import { isPrismaUniqueConstraintError } from "../../common/utils/isPrismaUniqueConstraintError";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
+import { recordWorkflowTemplateAuditEvent, WORKFLOW_TEMPLATE_AUDIT_ACTIONS } from "./workflow-template.audit";
 import { findRolesByIdsInOrganisation } from "../roles/role.repository";
 import {
   createWorkflowTemplateWithRelations,
@@ -101,6 +102,19 @@ export async function createWorkflowTemplate(
       `[API] Workflow template "${template.name}" created`,
     );
 
+    recordWorkflowTemplateAuditEvent({
+      action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.CREATED,
+      organisationId,
+      actorUserId: createdById,
+      entityId: template.id,
+      metadata: {
+        templateName: template.name,
+        status: template.status,
+        fieldsCount: template.fieldsCount,
+        stepsCount: template.stepsCount,
+      },
+    });
+
     return template;
   } catch (error) {
     if (isPrismaUniqueConstraintError(error)) {
@@ -160,6 +174,7 @@ export async function getWorkflowTemplateById(
 export async function updateWorkflowTemplate(
   organisationId: string,
   workflowTemplateId: string,
+  actorUserId: string,
   input: UpdateWorkflowTemplateBody,
 ): Promise<WorkflowTemplateDetailResponse> {
   const existingTemplate = await findWorkflowTemplateByIdInOrganisation(
@@ -229,6 +244,20 @@ export async function updateWorkflowTemplate(
       `[API] Workflow template "${updatedTemplate.name}" updated`,
     );
 
+    recordWorkflowTemplateAuditEvent({
+      action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.UPDATED,
+      organisationId,
+      actorUserId,
+      entityId: workflowTemplateId,
+      metadata: {
+        templateName: updatedTemplate.name,
+        status: updatedTemplate.status,
+        previousStatus: existingTemplate.status,
+        replacedFields: input.fields !== undefined,
+        replacedSteps: input.steps !== undefined,
+      },
+    });
+
     return toWorkflowTemplateDetailResponse(updatedTemplate);
   } catch (error) {
     if (isPrismaUniqueConstraintError(error)) {
@@ -283,6 +312,7 @@ function assertTemplateCanBeActivated(template: {
 export async function activateWorkflowTemplate(
   organisationId: string,
   workflowTemplateId: string,
+  actorUserId: string,
 ): Promise<WorkflowTemplateStatusResponse> {
   const template = await getWorkflowTemplateForStatusChangeOrThrow(
     organisationId,
@@ -307,12 +337,25 @@ export async function activateWorkflowTemplate(
     `[API] Workflow template "${updatedTemplate.name}" activated`,
   );
 
+  recordWorkflowTemplateAuditEvent({
+    action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.ACTIVATED,
+    organisationId,
+    actorUserId,
+    entityId: workflowTemplateId,
+    metadata: {
+      templateName: updatedTemplate.name,
+      status: updatedTemplate.status,
+      previousStatus: template.status,
+    },
+  });
+
   return toWorkflowTemplateStatusResponse(updatedTemplate);
 }
 
 export async function deactivateWorkflowTemplate(
   organisationId: string,
   workflowTemplateId: string,
+  actorUserId: string,
 ): Promise<WorkflowTemplateStatusResponse> {
   const template = await getWorkflowTemplateForStatusChangeOrThrow(
     organisationId,
@@ -338,12 +381,25 @@ export async function deactivateWorkflowTemplate(
     `[API] Workflow template "${updatedTemplate.name}" deactivated`,
   );
 
+  recordWorkflowTemplateAuditEvent({
+    action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.DEACTIVATED,
+    organisationId,
+    actorUserId,
+    entityId: workflowTemplateId,
+    metadata: {
+      templateName: updatedTemplate.name,
+      status: updatedTemplate.status,
+      previousStatus: template.status,
+    },
+  });
+
   return toWorkflowTemplateStatusResponse(updatedTemplate);
 }
 
 export async function archiveWorkflowTemplate(
   organisationId: string,
   workflowTemplateId: string,
+  actorUserId: string,
 ): Promise<WorkflowTemplateStatusResponse> {
   const template = await getWorkflowTemplateForStatusChangeOrThrow(
     organisationId,
@@ -369,6 +425,18 @@ export async function archiveWorkflowTemplate(
     },
     `[API] Workflow template "${updatedTemplate.name}" archived`,
   );
+
+  recordWorkflowTemplateAuditEvent({
+    action: WORKFLOW_TEMPLATE_AUDIT_ACTIONS.ARCHIVED,
+    organisationId,
+    actorUserId,
+    entityId: workflowTemplateId,
+    metadata: {
+      templateName: updatedTemplate.name,
+      status: updatedTemplate.status,
+      previousStatus: template.status,
+    },
+  });
 
   return toWorkflowTemplateStatusResponse(updatedTemplate);
 }

@@ -4,6 +4,8 @@ export interface AuditLogEventInput {
   action: string;
   organisationId: string;
   actorUserId: string;
+  entityType?: string;
+  entityId?: string;
   targetUserId?: string;
   targetMemberId?: string;
   metadata?: Record<string, unknown>;
@@ -20,6 +22,8 @@ export function recordAuditEvent(input: AuditLogEventInput): void {
       auditAction: input.action,
       organisationId: input.organisationId,
       actorUserId: input.actorUserId,
+      entityType: input.entityType,
+      entityId: input.entityId,
       targetUserId: input.targetUserId,
       targetMemberId: input.targetMemberId,
       metadata: input.metadata,
