@@ -6,7 +6,10 @@ import { ensureOrganisationContext } from "../../common/middleware/ensureOrganis
 import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
 import {
+  activateWorkflowTemplateController,
+  archiveWorkflowTemplateController,
   createWorkflowTemplateController,
+  deactivateWorkflowTemplateController,
   getWorkflowTemplateByIdController,
   listWorkflowTemplatesController,
   updateWorkflowTemplateController,
@@ -36,6 +39,30 @@ workflowTemplateRouter.post(
   requirePermission("workflows:create"),
   validateRequest({ body: createWorkflowTemplateSchema }),
   createWorkflowTemplateController,
+);
+
+workflowTemplateRouter.patch(
+  "/:id/activate",
+  ensureOrganisationContext,
+  requirePermission("workflows:activate"),
+  validateRequest({ params: workflowTemplateParamsSchema }),
+  activateWorkflowTemplateController,
+);
+
+workflowTemplateRouter.patch(
+  "/:id/deactivate",
+  ensureOrganisationContext,
+  requirePermission("workflows:deactivate"),
+  validateRequest({ params: workflowTemplateParamsSchema }),
+  deactivateWorkflowTemplateController,
+);
+
+workflowTemplateRouter.patch(
+  "/:id/archive",
+  ensureOrganisationContext,
+  requirePermission("workflows:delete"),
+  validateRequest({ params: workflowTemplateParamsSchema }),
+  archiveWorkflowTemplateController,
 );
 
 workflowTemplateRouter.get(

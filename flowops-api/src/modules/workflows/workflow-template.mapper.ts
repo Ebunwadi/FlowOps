@@ -13,6 +13,13 @@ export interface CreatedWorkflowTemplateSummary {
   stepsCount: number;
 }
 
+export interface WorkflowTemplateStatusResponse {
+  id: string;
+  name: string;
+  status: WorkflowTemplateStatus;
+  isActive: boolean;
+}
+
 export interface WorkflowTemplateListItem {
   id: string;
   name: string;
@@ -101,6 +108,20 @@ export function toCreatedWorkflowTemplateSummary(template: {
     isActive: template.isActive,
     fieldsCount: template._count.fields,
     stepsCount: template._count.steps,
+  };
+}
+
+export function toWorkflowTemplateStatusResponse(template: {
+  id: string;
+  name: string;
+  status: WorkflowTemplateStatus;
+  isActive: boolean;
+}): WorkflowTemplateStatusResponse {
+  return {
+    id: template.id,
+    name: template.name,
+    status: template.status,
+    isActive: template.isActive,
   };
 }
 

@@ -89,3 +89,48 @@ export const updateWorkflowTemplateController = asyncHandler(
     });
   },
 );
+
+export const activateWorkflowTemplateController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const organisation = requireOrganisation(req);
+    const data = await workflowTemplateService.activateWorkflowTemplate(
+      organisation.id,
+      req.params.id,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow template activated successfully",
+    });
+  },
+);
+
+export const deactivateWorkflowTemplateController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const organisation = requireOrganisation(req);
+    const data = await workflowTemplateService.deactivateWorkflowTemplate(
+      organisation.id,
+      req.params.id,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow template deactivated successfully",
+    });
+  },
+);
+
+export const archiveWorkflowTemplateController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const organisation = requireOrganisation(req);
+    const data = await workflowTemplateService.archiveWorkflowTemplate(
+      organisation.id,
+      req.params.id,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow template archived successfully",
+    });
+  },
+);

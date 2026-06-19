@@ -1,7 +1,10 @@
-import { ConflictError, NotFoundError } from "../src/common/errors/httpErrors";
+import { ConflictError, NotFoundError, ValidationError } from "../src/common/errors/httpErrors";
 import { prisma } from "../src/config/database";
 import {
+  activateWorkflowTemplate,
+  archiveWorkflowTemplate,
   createWorkflowTemplate,
+  deactivateWorkflowTemplate,
   getWorkflowTemplateById,
   listWorkflowTemplates,
   updateWorkflowTemplate,
@@ -385,6 +388,147 @@ describe("workflow template service", () => {
           steps: createInput.steps,
         }),
       ).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe("activateWorkflowTemplate", () => {
+    const statusTemplate = {
+      id: createdTemplate.id,
+      name: createdTemplate.name,
+      status: "DRAFT" as const,
+      isActive: false,
+      _count: { fields: 2, steps: 2 },
+    };
+
+    beforeEach(() => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateForStatusChange)
+        .mockResolvedValue(statusTemplate);
+      jest.mocked(workflowTemplateRepository.updateWorkflowTemplateStatus).mockResolvedValue({
+        id: createdTemplate.id,
+        name: createdTemplate.name,
+        status: "ACTIVE",
+        isActive: true,
+      });
+    });
+
+    it("activates a draft template with fields and steps", async () => {
+      const result = await activateWorkflowTemplate(organisationId, createdTemplate.id);
+
+      expect(result.status).toBe("ACTIVE");
+      expect(result.isActive).toBe(true);
+      expect(workflowTemplateRepository.updateWorkflowTemplateStatus).toHaveBeenCalledWith(
+        createdTemplate.id,
+        { status: "ACTIVE", isActive: true },
+      );
+    });
+
+    it("reactivates an inactive template", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateForStatusChange)
+        .mockResolvedValue({
+          ...statusTemplate,
+          status: "INACTIVE",
+        });
+
+      const result = await activateWorkflowTemplate(organisationId, createdTemplate.id);
+
+      expect(result.status).toBe("ACTIVE");
+    });
+
+    it("throws when the template has no approval steps", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateForStatusChange)
+        .mockResolvedValue({
+          ...statusTemplate,
+          _count: { fields: 1, steps: 0 },
+        });
+
+      await expect(
+        activateWorkflowTemplate(organisationId, createdTemplate.id),
+      ).rejects.toThrow(ValidationError);
+    });
+  });
+
+  describe("deactivateWorkflowTemplate", () => {
+    it("deactivates an active template", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateForStatusChange)
+        .mockResolvedValue({
+          id: createdTemplate.id,
+          name: createdTemplate.name,
+          status: "ACTIVE",
+          isActive: true,
+          _count: { fields: 2, steps: 2 },
+        });
+      jest.mocked(workflowTemplateRepository.updateWorkflowTemplateStatus).mockResolvedValue({
+        id: createdTemplate.id,
+        name: createdTemplate.name,
+        status: "INACTIVE",
+        isActive: false,
+      });
+
+      const result = await deactivateWorkflowTemplate(organisationId, createdTemplate.id);
+
+      expect(result.status).toBe("INACTIVE");
+      expect(result.isActive).toBe(false);
+    });
+
+    it("throws when the template is not active", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateForStatusChange)
+        .mockResolvedValue({
+          id: createdTemplate.id,
+          name: createdTemplate.name,
+          status: "DRAFT",
+          isActive: false,
+          _count: { fields: 2, steps: 2 },
+        });
+
+      await expect(
+        deactivateWorkflowTemplate(organisationId, createdTemplate.id),
+      ).rejects.toThrow(ConflictError);
+    });
+  });
+
+  describe("archiveWorkflowTemplate", () => {
+    it("archives a template", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateForStatusChange)
+        .mockResolvedValue({
+          id: createdTemplate.id,
+          name: createdTemplate.name,
+          status: "INACTIVE",
+          isActive: false,
+          _count: { fields: 2, steps: 2 },
+        });
+      jest.mocked(workflowTemplateRepository.updateWorkflowTemplateStatus).mockResolvedValue({
+        id: createdTemplate.id,
+        name: createdTemplate.name,
+        status: "ARCHIVED",
+        isActive: false,
+      });
+
+      const result = await archiveWorkflowTemplate(organisationId, createdTemplate.id);
+
+      expect(result.status).toBe("ARCHIVED");
+      expect(result.isActive).toBe(false);
+    });
+
+    it("throws when the template is already archived", async () => {
+      jest
+        .mocked(workflowTemplateRepository.findWorkflowTemplateForStatusChange)
+        .mockResolvedValue({
+          id: createdTemplate.id,
+          name: createdTemplate.name,
+          status: "ARCHIVED",
+          isActive: false,
+          _count: { fields: 2, steps: 2 },
+        });
+
+      await expect(
+        archiveWorkflowTemplate(organisationId, createdTemplate.id),
+      ).rejects.toThrow(ConflictError);
     });
   });
 });
