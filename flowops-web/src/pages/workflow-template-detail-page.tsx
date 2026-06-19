@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { getWorkflowTemplateById } from "@/api/workflow-templates";
 import { useOrganisation } from "@/auth/use-organisation";
 import { usePermissions } from "@/auth/use-permissions";
+import { WorkflowTemplateActions } from "@/components/workflows/workflow-template-actions";
 import { WorkflowTemplateStatusBadge } from "@/components/workflows/workflow-template-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,12 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FIELD_TYPE_LABELS } from "@/schemas/workflow-template.schema";
 import { ApiClientError } from "@/types/api";
 import {
   formatWorkflowTemplateDate,
   type WorkflowTemplateField,
+  type WorkflowTemplateStep,
 } from "@/types/workflow-template";
-import { FIELD_TYPE_LABELS } from "@/schemas/workflow-template.schema";
 
 export function WorkflowTemplateDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,9 +30,13 @@ export function WorkflowTemplateDetailPage() {
 
   const canView = hasPermission("workflows:view");
   const canUpdate = hasPermission("workflows:update");
-  const wasJustCreated = Boolean(
-    (location.state as { created?: boolean } | null)?.created,
-  );
+  const canActivate = hasPermission("workflows:activate");
+  const canDeactivate = hasPermission("workflows:deactivate");
+  const canArchive = hasPermission("workflows:delete");
+
+  const pageState = location.state as { created?: boolean; updated?: boolean } | null;
+  const wasJustCreated = Boolean(pageState?.created);
+  const wasJustUpdated = Boolean(pageState?.updated);
 
   const templateQuery = useQuery({
     queryKey: ["workflow-templates", id],
@@ -52,9 +58,13 @@ export function WorkflowTemplateDetailPage() {
 
   if (templateQuery.isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="h-8 w-64 animate-pulse rounded bg-muted" />
-        <div className="h-40 animate-pulse rounded-lg bg-muted" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="h-48 animate-pulse rounded-lg bg-muted lg:col-span-1" />
+          <div className="h-48 animate-pulse rounded-lg bg-muted lg:col-span-2" />
+        </div>
+        <div className="h-56 animate-pulse rounded-lg bg-muted" />
       </div>
     );
   }
@@ -81,6 +91,9 @@ export function WorkflowTemplateDetailPage() {
     return null;
   }
 
+  const orderedFields = [...template.fields].sort((a, b) => a.fieldOrder - b.fieldOrder);
+  const orderedSteps = [...template.steps].sort((a, b) => a.stepOrder - b.stepOrder);
+
   return (
     <div className="space-y-6">
       {wasJustCreated ? (
@@ -90,7 +103,13 @@ export function WorkflowTemplateDetailPage() {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      {wasJustUpdated ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          Workflow template updated successfully.
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
             <Link className="hover:text-foreground" to="/workflows">
@@ -107,28 +126,49 @@ export function WorkflowTemplateDetailPage() {
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
               {template.description}
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              No description provided for this workflow template.
+            </p>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild type="button" variant="outline">
-            <Link to="/workflows">Back to list</Link>
-          </Button>
-          {canUpdate ? (
-            <Button asChild type="button">
-              <Link to={`/workflows/${template.id}/edit`}>Edit template</Link>
+
+        <div className="flex flex-col gap-3 lg:items-end">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild type="button" variant="outline">
+              <Link to="/workflows">Back to list</Link>
             </Button>
-          ) : null}
+            {canUpdate ? (
+              <Button asChild type="button">
+                <Link to={`/workflows/${template.id}/edit`}>Edit template</Link>
+              </Button>
+            ) : null}
+          </div>
+          <WorkflowTemplateActions
+            canActivate={canActivate}
+            canArchive={canArchive}
+            canDeactivate={canDeactivate}
+            status={template.status}
+            templateId={template.id}
+            templateName={template.name}
+          />
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="border-border/80 shadow-sm lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-lg">Summary</CardTitle>
-            <CardDescription>Template metadata and counts.</CardDescription>
+            <CardTitle className="text-lg">Workflow summary</CardTitle>
+            <CardDescription>Template metadata and status.</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-muted-foreground">Status</dt>
+                <dd className="mt-1">
+                  <WorkflowTemplateStatusBadge status={template.status} />
+                </dd>
+              </div>
               <div>
                 <dt className="text-muted-foreground">Category</dt>
                 <dd className="font-medium">{template.category ?? "—"}</dd>
@@ -140,6 +180,18 @@ export function WorkflowTemplateDetailPage() {
               <div>
                 <dt className="text-muted-foreground">Approval steps</dt>
                 <dd className="font-medium">{template.stepsCount}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Availability</dt>
+                <dd className="font-medium">
+                  {template.isActive ? "Active for requests" : "Not active"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Created</dt>
+                <dd className="font-medium">
+                  {formatWorkflowTemplateDate(template.createdAt)}
+                </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Last updated</dt>
@@ -154,14 +206,20 @@ export function WorkflowTemplateDetailPage() {
         <Card className="border-border/80 shadow-sm lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-lg">Form fields</CardTitle>
-            <CardDescription>Fields requesters complete when submitting.</CardDescription>
+            <CardDescription>
+              Fields are shown in the order requesters will complete them.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {template.fields.map((field) => (
-                <FieldSummary key={field.id} field={field} />
-              ))}
-            </div>
+            {orderedFields.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No form fields defined.</p>
+            ) : (
+              <ol className="space-y-3">
+                {orderedFields.map((field) => (
+                  <FieldSummary key={field.id} field={field} />
+                ))}
+              </ol>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -169,44 +227,20 @@ export function WorkflowTemplateDetailPage() {
       <Card className="border-border/80 shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg">Approval steps</CardTitle>
-          <CardDescription>Review sequence for submitted requests.</CardDescription>
+          <CardDescription>
+            Steps are executed in order from first to last approver.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <ol className="space-y-3">
-            {template.steps.map((step, index) => (
-              <li key={step.id} className="rounded-lg border p-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="font-medium">{step.name}</p>
-                    {step.description ? (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {step.description}
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Approver role:{" "}
-                      <span className="font-medium text-foreground">
-                        {step.approverRole.name}
-                      </span>
-                    </p>
-                    {step.slaHours ? (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        SLA: {step.slaHours} hours
-                      </p>
-                    ) : null}
-                    {step.allowDelegation ? (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Delegation allowed
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
+          {orderedSteps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No approval steps defined.</p>
+          ) : (
+            <ol className="space-y-3">
+              {orderedSteps.map((step, index) => (
+                <StepSummary key={step.id} index={index} step={step} />
+              ))}
+            </ol>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -219,22 +253,64 @@ function FieldSummary({ field }: { field: WorkflowTemplateField }) {
     : [];
 
   return (
-    <div className="rounded-lg border px-4 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-medium">
-          {field.label}
-          {field.isRequired ? <span className="text-red-600"> *</span> : null}
-        </p>
+    <li className="rounded-lg border px-4 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-medium">
+            {field.fieldOrder}. {field.label}
+            {field.isRequired ? <span className="text-red-600"> *</span> : null}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Key: {field.fieldKey}</p>
+        </div>
         <span className="text-xs uppercase tracking-wide text-muted-foreground">
           {FIELD_TYPE_LABELS[field.fieldType]}
         </span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Key: {field.fieldKey}</p>
+      {field.placeholder ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Placeholder: {field.placeholder}
+        </p>
+      ) : null}
+      {field.helpText ? (
+        <p className="mt-1 text-sm text-muted-foreground">Help: {field.helpText}</p>
+      ) : null}
       {options.length > 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">
           Options: {options.join(", ")}
         </p>
       ) : null}
-    </div>
+    </li>
+  );
+}
+
+function StepSummary({ step, index }: { step: WorkflowTemplateStep; index: number }) {
+  return (
+    <li className="rounded-lg border p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+          {step.stepOrder}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">
+            Step {index + 1}: {step.name}
+          </p>
+          {step.description ? (
+            <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
+          ) : null}
+          <p className="mt-2 text-sm text-muted-foreground">
+            Approver role:{" "}
+            <span className="font-medium text-foreground">{step.approverRole.name}</span>
+          </p>
+          {step.slaHours ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              SLA: {step.slaHours} hours
+            </p>
+          ) : null}
+          <p className="mt-1 text-sm text-muted-foreground">
+            Delegation: {step.allowDelegation ? "Allowed" : "Not allowed"}
+          </p>
+        </div>
+      </div>
+    </li>
   );
 }

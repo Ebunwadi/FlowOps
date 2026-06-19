@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { WorkflowTemplateDetail } from "@/types/workflow-template";
+
 export const WORKFLOW_FIELD_TYPES = [
   "SHORT_TEXT",
   "LONG_TEXT",
@@ -190,6 +192,46 @@ export function toCreateWorkflowTemplatePayload(values: CreateWorkflowTemplateFo
           : Number(step.slaHours),
       allowDelegation: step.allowDelegation,
     })),
+  };
+}
+
+function parseFieldOptions(options: unknown): string[] {
+  if (!Array.isArray(options)) {
+    return [];
+  }
+
+  return options.filter((option): option is string => typeof option === "string");
+}
+
+export function toWorkflowTemplateFormValues(
+  template: WorkflowTemplateDetail,
+): CreateWorkflowTemplateFormValues {
+  return {
+    name: template.name,
+    description: template.description ?? "",
+    category: template.category ?? "",
+    fields: [...template.fields]
+      .sort((a, b) => a.fieldOrder - b.fieldOrder)
+      .map((field) => ({
+        label: field.label,
+        fieldKey: field.fieldKey,
+        fieldType: field.fieldType,
+        helpText: field.helpText ?? "",
+        placeholder: field.placeholder ?? "",
+        isRequired: field.isRequired,
+        options: parseFieldOptions(field.options),
+        fieldOrder: field.fieldOrder,
+      })),
+    steps: [...template.steps]
+      .sort((a, b) => a.stepOrder - b.stepOrder)
+      .map((step) => ({
+        name: step.name,
+        description: step.description ?? "",
+        stepOrder: step.stepOrder,
+        approverRoleId: step.approverRoleId,
+        slaHours: step.slaHours ?? "",
+        allowDelegation: step.allowDelegation,
+      })),
   };
 }
 

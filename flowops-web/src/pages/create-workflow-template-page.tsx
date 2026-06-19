@@ -71,6 +71,8 @@ export function CreateWorkflowTemplatePage() {
       </div>
 
       <WorkflowTemplateForm
+        cancelTo="/workflows"
+        mode="create"
         roles={rolesQuery.data ?? []}
         rolesLoading={rolesQuery.isLoading}
       />
