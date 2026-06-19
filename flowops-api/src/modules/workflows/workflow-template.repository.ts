@@ -107,7 +107,9 @@ function buildWorkflowTemplateListWhere(
 ) {
   return {
     organisationId,
-    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.status
+      ? { status: filters.status }
+      : { status: { not: "ARCHIVED" as const } }),
     ...(filters.category ? { category: filters.category } : {}),
     ...(filters.search
       ? {
@@ -288,4 +290,49 @@ export async function updateWorkflowTemplateWithRelations(
     input.organisationId,
     db,
   );
+}
+
+export async function findWorkflowTemplateForStatusChange(
+  workflowTemplateId: string,
+  organisationId: string,
+  db: DbClient = prisma,
+) {
+  return db.workflowTemplate.findFirst({
+    where: {
+      id: workflowTemplateId,
+      organisationId,
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      isActive: true,
+      _count: {
+        select: {
+          fields: true,
+          steps: true,
+        },
+      },
+    },
+  });
+}
+
+export async function updateWorkflowTemplateStatus(
+  workflowTemplateId: string,
+  data: {
+    status: WorkflowTemplateStatus;
+    isActive: boolean;
+  },
+  db: DbClient = prisma,
+) {
+  return db.workflowTemplate.update({
+    where: { id: workflowTemplateId },
+    data,
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      isActive: true,
+    },
+  });
 }

@@ -1,6 +1,7 @@
 import {
   ConflictError,
   NotFoundError,
+  ValidationError,
 } from "../../common/errors/httpErrors";
 import { isPrismaUniqueConstraintError } from "../../common/utils/isPrismaUniqueConstraintError";
 import { prisma } from "../../config/database";
@@ -12,14 +13,18 @@ import {
   findWorkflowTemplateByIdInOrganisation,
   findWorkflowTemplateByNameInOrganisation,
   findWorkflowTemplatesByOrganisation,
+  findWorkflowTemplateForStatusChange,
+  updateWorkflowTemplateStatus,
   updateWorkflowTemplateWithRelations,
 } from "./workflow-template.repository";
 import type { CreatedWorkflowTemplateSummary } from "./workflow-template.mapper";
 import {
   toWorkflowTemplateDetailResponse,
   toWorkflowTemplateListItem,
+  toWorkflowTemplateStatusResponse,
   type PaginatedWorkflowTemplatesResponse,
   type WorkflowTemplateDetailResponse,
+  type WorkflowTemplateStatusResponse,
 } from "./workflow-template.mapper";
 import {
   assertUniqueWorkflowFields,
@@ -234,4 +239,136 @@ export async function updateWorkflowTemplate(
 
     throw error;
   }
+}
+
+async function getWorkflowTemplateForStatusChangeOrThrow(
+  organisationId: string,
+  workflowTemplateId: string,
+) {
+  const template = await findWorkflowTemplateForStatusChange(
+    workflowTemplateId,
+    organisationId,
+  );
+
+  if (!template) {
+    throw new NotFoundError("Workflow template not found");
+  }
+
+  return template;
+}
+
+function assertTemplateCanBeActivated(template: {
+  status: string;
+  _count: { fields: number; steps: number };
+}): void {
+  if (template._count.fields < 1 || template._count.steps < 1) {
+    throw new ValidationError(
+      "Workflow template must have at least one field and one approval step before activation",
+    );
+  }
+
+  if (template.status === "ACTIVE") {
+    throw new ConflictError("Workflow template is already active");
+  }
+
+  if (template.status === "ARCHIVED") {
+    throw new ConflictError("Archived workflow templates cannot be activated");
+  }
+
+  if (template.status !== "DRAFT" && template.status !== "INACTIVE") {
+    throw new ConflictError("Workflow template cannot be activated from its current status");
+  }
+}
+
+export async function activateWorkflowTemplate(
+  organisationId: string,
+  workflowTemplateId: string,
+): Promise<WorkflowTemplateStatusResponse> {
+  const template = await getWorkflowTemplateForStatusChangeOrThrow(
+    organisationId,
+    workflowTemplateId,
+  );
+
+  assertTemplateCanBeActivated(template);
+
+  const updatedTemplate = await updateWorkflowTemplateStatus(workflowTemplateId, {
+    status: "ACTIVE",
+    isActive: true,
+  });
+
+  logger.info(
+    {
+      origin: "api",
+      event: "workflow_template.activated",
+      organisationId,
+      workflowTemplateId,
+      previousStatus: template.status,
+    },
+    `[API] Workflow template "${updatedTemplate.name}" activated`,
+  );
+
+  return toWorkflowTemplateStatusResponse(updatedTemplate);
+}
+
+export async function deactivateWorkflowTemplate(
+  organisationId: string,
+  workflowTemplateId: string,
+): Promise<WorkflowTemplateStatusResponse> {
+  const template = await getWorkflowTemplateForStatusChangeOrThrow(
+    organisationId,
+    workflowTemplateId,
+  );
+
+  if (template.status !== "ACTIVE") {
+    throw new ConflictError("Only active workflow templates can be deactivated");
+  }
+
+  const updatedTemplate = await updateWorkflowTemplateStatus(workflowTemplateId, {
+    status: "INACTIVE",
+    isActive: false,
+  });
+
+  logger.info(
+    {
+      origin: "api",
+      event: "workflow_template.deactivated",
+      organisationId,
+      workflowTemplateId,
+    },
+    `[API] Workflow template "${updatedTemplate.name}" deactivated`,
+  );
+
+  return toWorkflowTemplateStatusResponse(updatedTemplate);
+}
+
+export async function archiveWorkflowTemplate(
+  organisationId: string,
+  workflowTemplateId: string,
+): Promise<WorkflowTemplateStatusResponse> {
+  const template = await getWorkflowTemplateForStatusChangeOrThrow(
+    organisationId,
+    workflowTemplateId,
+  );
+
+  if (template.status === "ARCHIVED") {
+    throw new ConflictError("Workflow template is already archived");
+  }
+
+  const updatedTemplate = await updateWorkflowTemplateStatus(workflowTemplateId, {
+    status: "ARCHIVED",
+    isActive: false,
+  });
+
+  logger.info(
+    {
+      origin: "api",
+      event: "workflow_template.archived",
+      organisationId,
+      workflowTemplateId,
+      previousStatus: template.status,
+    },
+    `[API] Workflow template "${updatedTemplate.name}" archived`,
+  );
+
+  return toWorkflowTemplateStatusResponse(updatedTemplate);
 }
