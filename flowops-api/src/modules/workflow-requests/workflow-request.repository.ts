@@ -41,6 +41,35 @@ const submittedRequestSelect = {
   },
 } as const;
 
+const draftRequestSelect = {
+  id: true,
+  workflowTemplateId: true,
+  title: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  values: {
+    select: {
+      workflowFieldId: true,
+      value: true,
+    },
+  },
+} as const;
+
+const requestForMutationSelect = {
+  id: true,
+  requesterId: true,
+  status: true,
+  workflowTemplateId: true,
+  title: true,
+  values: {
+    select: {
+      workflowFieldId: true,
+      value: true,
+    },
+  },
+} as const;
+
 export async function findTemplateForRequestSubmission(
   workflowTemplateId: string,
   organisationId: string,
@@ -88,4 +117,121 @@ export async function createWorkflowRequestWithValues(
     },
     select: submittedRequestSelect,
   });
+}
+
+export async function findWorkflowRequestForMutation(
+  workflowRequestId: string,
+  organisationId: string,
+  db: DbClient = prisma,
+) {
+  return db.workflowRequest.findFirst({
+    where: {
+      id: workflowRequestId,
+      organisationId,
+    },
+    select: requestForMutationSelect,
+  });
+}
+
+export interface CreateDraftWorkflowRequestRecordInput {
+  organisationId: string;
+  workflowTemplateId: string;
+  requesterId: string;
+  title?: string;
+  values: ValidatedRequestValue[];
+}
+
+export async function createDraftWorkflowRequestRecord(
+  input: CreateDraftWorkflowRequestRecordInput,
+  db: DbClient,
+) {
+  return db.workflowRequest.create({
+    data: {
+      organisationId: input.organisationId,
+      workflowTemplateId: input.workflowTemplateId,
+      requesterId: input.requesterId,
+      status: "DRAFT",
+      title: input.title,
+      submittedAt: null,
+      currentStepId: null,
+      values: {
+        create: input.values.map((value) => ({
+          workflowFieldId: value.workflowFieldId,
+          value: value.value,
+        })),
+      },
+    },
+    select: draftRequestSelect,
+  });
+}
+
+export interface UpdateDraftWorkflowRequestRecordInput {
+  workflowRequestId: string;
+  title?: string;
+  values?: ValidatedRequestValue[];
+}
+
+export async function updateDraftWorkflowRequestRecord(
+  input: UpdateDraftWorkflowRequestRecordInput,
+  db: DbClient,
+) {
+  await db.workflowRequest.update({
+    where: { id: input.workflowRequestId },
+    data: {
+      ...(input.title !== undefined ? { title: input.title } : {}),
+    },
+  });
+
+  if (input.values) {
+    await replaceRequestValues(input.workflowRequestId, input.values, db);
+  }
+
+  return db.workflowRequest.findFirst({
+    where: { id: input.workflowRequestId },
+    select: draftRequestSelect,
+  });
+}
+
+export interface SubmitDraftWorkflowRequestRecordInput {
+  workflowRequestId: string;
+  currentStepId: string;
+  submittedAt: Date;
+  values: ValidatedRequestValue[];
+}
+
+export async function submitDraftWorkflowRequestRecord(
+  input: SubmitDraftWorkflowRequestRecordInput,
+  db: DbClient,
+) {
+  await replaceRequestValues(input.workflowRequestId, input.values, db);
+
+  return db.workflowRequest.update({
+    where: { id: input.workflowRequestId },
+    data: {
+      status: "PENDING_APPROVAL",
+      currentStepId: input.currentStepId,
+      submittedAt: input.submittedAt,
+    },
+    select: submittedRequestSelect,
+  });
+}
+
+async function replaceRequestValues(
+  workflowRequestId: string,
+  values: ValidatedRequestValue[],
+  db: DbClient,
+): Promise<void> {
+  await db.workflowRequestValue.deleteMany({
+    where: { workflowRequestId },
+  });
+
+  if (values.length > 0) {
+    await db.workflowRequestValue.createMany({
+      data: values.map((value) => ({
+        workflowRequestId,
+        workflowFieldId: value.workflowFieldId,
+        value: value.value,
+      })),
+    });
+  }
 }

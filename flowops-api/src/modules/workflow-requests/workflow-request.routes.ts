@@ -5,8 +5,18 @@ import { ensureLocalUser } from "../../common/middleware/ensureLocalUser";
 import { ensureOrganisationContext } from "../../common/middleware/ensureOrganisationContext";
 import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
-import { submitWorkflowRequestController } from "./workflow-request.controller";
-import { submitWorkflowRequestSchema } from "./workflow-request.validation";
+import {
+  saveDraftWorkflowRequestController,
+  submitDraftWorkflowRequestController,
+  submitWorkflowRequestController,
+  updateDraftWorkflowRequestController,
+} from "./workflow-request.controller";
+import {
+  saveDraftWorkflowRequestSchema,
+  submitWorkflowRequestSchema,
+  updateDraftWorkflowRequestSchema,
+  workflowRequestParamsSchema,
+} from "./workflow-request.validation";
 
 export const workflowRequestRouter = Router();
 
@@ -18,4 +28,31 @@ workflowRequestRouter.post(
   requirePermission("requests:create"),
   validateRequest({ body: submitWorkflowRequestSchema }),
   submitWorkflowRequestController,
+);
+
+workflowRequestRouter.post(
+  "/drafts",
+  ensureOrganisationContext,
+  requirePermission("requests:create"),
+  validateRequest({ body: saveDraftWorkflowRequestSchema }),
+  saveDraftWorkflowRequestController,
+);
+
+workflowRequestRouter.patch(
+  "/:id/draft",
+  ensureOrganisationContext,
+  requirePermission("requests:create"),
+  validateRequest({
+    params: workflowRequestParamsSchema,
+    body: updateDraftWorkflowRequestSchema,
+  }),
+  updateDraftWorkflowRequestController,
+);
+
+workflowRequestRouter.post(
+  "/:id/submit",
+  ensureOrganisationContext,
+  requirePermission("requests:create"),
+  validateRequest({ params: workflowRequestParamsSchema }),
+  submitDraftWorkflowRequestController,
 );
