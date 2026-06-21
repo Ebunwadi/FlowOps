@@ -41,3 +41,56 @@ export const submitWorkflowRequestController = asyncHandler(
     });
   },
 );
+
+export const saveDraftWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const data = await workflowRequestService.saveDraftWorkflowRequest(
+      organisation.id,
+      localUser.id,
+      req.body,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow request draft saved successfully",
+      statusCode: 201,
+    });
+  },
+);
+
+export const updateDraftWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const data = await workflowRequestService.updateDraftWorkflowRequest(
+      organisation.id,
+      localUser.id,
+      req.params.id,
+      req.body,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow request draft updated successfully",
+    });
+  },
+);
+
+export const submitDraftWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const data = await workflowRequestService.submitDraftWorkflowRequest(
+      organisation.id,
+      localUser.id,
+      req.params.id,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow request submitted successfully",
+    });
+  },
+);
