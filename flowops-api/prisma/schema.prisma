@@ -20,6 +20,7 @@ model User {
   organisationMemberships OrganisationMember[]
   createdOrganisations    Organisation[]       @relation("CreatedOrganisations")
   createdWorkflowTemplates WorkflowTemplate[]  @relation("CreatedWorkflowTemplates")
+  workflowRequests        WorkflowRequest[]
 
   @@map("users")
 }
@@ -37,6 +38,7 @@ model Organisation {
   members   OrganisationMember[]
   roles     Role[]
   workflowTemplates WorkflowTemplate[]
+  workflowRequests  WorkflowRequest[]
 
   @@index([createdById])
   @@map("organisations")
@@ -127,6 +129,15 @@ enum WorkflowFieldType {
   FILE_UPLOAD
 }
 
+enum WorkflowRequestStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 /// Org-scoped workflow definition with dynamic form fields and approval steps.
 model WorkflowTemplate {
   id             String                 @id @default(uuid())
@@ -144,6 +155,7 @@ model WorkflowTemplate {
   createdBy    User            @relation("CreatedWorkflowTemplates", fields: [createdById], references: [id])
   fields       WorkflowField[]
   steps        WorkflowStep[]
+  requests     WorkflowRequest[]
 
   @@unique([organisationId, name])
   @@index([organisationId])
@@ -168,6 +180,7 @@ model WorkflowField {
   updatedAt          DateTime          @updatedAt
 
   workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+  requestValues    WorkflowRequestValue[]
 
   @@unique([workflowTemplateId, fieldKey])
   @@index([workflowTemplateId])
@@ -190,9 +203,57 @@ model WorkflowStep {
 
   workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
   approverRole     Role             @relation(fields: [approverRoleId], references: [id])
+  currentRequests  WorkflowRequest[]
 
   @@unique([workflowTemplateId, stepOrder])
   @@index([workflowTemplateId])
   @@index([approverRoleId])
   @@map("workflow_steps")
+}
+
+/// A submitted instance of a workflow template; an actual request moving through approvals.
+model WorkflowRequest {
+  id                 String                @id @default(uuid())
+  organisationId     String
+  workflowTemplateId String
+  requesterId        String
+  currentStepId      String?
+  status             WorkflowRequestStatus @default(DRAFT)
+  title              String?
+  submittedAt        DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  organisation     Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  workflowTemplate WorkflowTemplate        @relation(fields: [workflowTemplateId], references: [id])
+  requester        User                    @relation(fields: [requesterId], references: [id])
+  currentStep      WorkflowStep?           @relation(fields: [currentStepId], references: [id])
+  values           WorkflowRequestValue[]
+
+  @@index([organisationId])
+  @@index([workflowTemplateId])
+  @@index([requesterId])
+  @@index([currentStepId])
+  @@index([status])
+  @@map("workflow_requests")
+}
+
+/// A submitted value for a single workflow field on a workflow request.
+model WorkflowRequestValue {
+  id                String   @id @default(uuid())
+  workflowRequestId String
+  workflowFieldId   String
+  value             Json
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workflowRequest WorkflowRequest @relation(fields: [workflowRequestId], references: [id], onDelete: Cascade)
+  workflowField   WorkflowField   @relation(fields: [workflowFieldId], references: [id])
+
+  @@unique([workflowRequestId, workflowFieldId])
+  @@index([workflowRequestId])
+  @@index([workflowFieldId])
+  @@map("workflow_request_values")
 }
