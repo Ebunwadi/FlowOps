@@ -11,4 +11,6 @@ export type DbClient = Pick<
   | "workflowTemplate"
   | "workflowField"
   | "workflowStep"
+  | "workflowRequest"
+  | "workflowRequestValue"
 >;
