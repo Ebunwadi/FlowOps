@@ -9,10 +9,11 @@ import {
   listWorkflowTemplates,
 } from "@/api/workflow-templates";
 import { Button } from "@/components/ui/button";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { ApiClientError } from "@/types/api";
+import { formatApiErrorMessage } from "@/lib/api-errors";
 import {
   formatWorkflowTemplateDate,
   formatWorkflowTemplateStatus,
@@ -123,10 +124,10 @@ export function WorkflowTemplatesTable({ permissions }: WorkflowTemplatesTablePr
 
   if (!permissions.canView) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <DismissibleAlert variant="warning">
         Your role does not include access to workflow templates. Contact an
         organisation admin if you need access.
-      </div>
+      </DismissibleAlert>
     );
   }
 
@@ -159,7 +160,11 @@ export function WorkflowTemplatesTable({ permissions }: WorkflowTemplatesTablePr
             setPage(1);
           }}
         />
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center">
+        <DismissibleAlert
+          className="text-center"
+          messageKey={getErrorMessage(templatesQuery.error)}
+          variant="error"
+        >
           <h3 className="text-sm font-medium text-red-900">
             Unable to load workflow templates
           </h3>
@@ -177,7 +182,7 @@ export function WorkflowTemplatesTable({ permissions }: WorkflowTemplatesTablePr
           >
             Try again
           </Button>
-        </div>
+        </DismissibleAlert>
       </div>
     );
   }
@@ -220,9 +225,15 @@ export function WorkflowTemplatesTable({ permissions }: WorkflowTemplatesTablePr
       />
 
       {actionError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <DismissibleAlert
+          messageKey={actionError}
+          onDismiss={() => {
+            setActionError(null);
+          }}
+          variant="error"
+        >
           {actionError}
-        </div>
+        </DismissibleAlert>
       ) : null}
 
       {items.length === 0 ? (
@@ -547,13 +558,5 @@ function WorkflowTemplatesTableSkeleton() {
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Something went wrong.";
+  return formatApiErrorMessage(error);
 }

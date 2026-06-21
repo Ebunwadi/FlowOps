@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import {
   createEmptyField,
   createEmptyStep,
@@ -167,7 +168,15 @@ export function WorkflowTemplateForm({
           <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-h-5">
               {submitError ? (
-                <p className="text-sm text-red-600">{submitError}</p>
+                <DismissibleAlert
+                  messageKey={submitError}
+                  onDismiss={() => {
+                    submitMutation.reset();
+                  }}
+                  variant="error"
+                >
+                  {submitError}
+                </DismissibleAlert>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {isEdit

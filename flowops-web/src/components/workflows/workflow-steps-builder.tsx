@@ -1,6 +1,7 @@
 import { useFieldArray, useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -60,15 +61,15 @@ export function WorkflowStepsBuilder({
   return (
     <div className="space-y-4">
       {errors.steps?.root?.message ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <DismissibleAlert messageKey={errors.steps.root.message} variant="error">
           {errors.steps.root.message}
-        </div>
+        </DismissibleAlert>
       ) : null}
 
       {typeof errors.steps?.message === "string" ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <DismissibleAlert messageKey={errors.steps.message} variant="error">
           {errors.steps.message}
-        </div>
+        </DismissibleAlert>
       ) : null}
 
       {fields.length === 0 ? (
