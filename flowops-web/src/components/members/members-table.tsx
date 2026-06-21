@@ -9,9 +9,10 @@ import {
 } from "@/api/members";
 import { useAuth } from "@/auth/use-auth";
 import { Button } from "@/components/ui/button";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { StatusBadge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
-import { ApiClientError } from "@/types/api";
+import { formatApiErrorMessage } from "@/lib/api-errors";
 import {
   formatMemberName,
   formatMemberStatus,
@@ -94,9 +95,9 @@ export function MembersTable({ organisationId, canManage }: MembersTableProps) {
 
   if (membersQuery.isError) {
     return (
-      <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <DismissibleAlert messageKey={getErrorMessage(membersQuery.error)} variant="error">
         {getErrorMessage(membersQuery.error)}
-      </div>
+      </DismissibleAlert>
     );
   }
 
@@ -117,9 +118,15 @@ export function MembersTable({ organisationId, canManage }: MembersTableProps) {
   return (
     <div className="space-y-4">
       {actionError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <DismissibleAlert
+          messageKey={actionError}
+          onDismiss={() => {
+            setActionError(null);
+          }}
+          variant="error"
+        >
           {actionError}
-        </div>
+        </DismissibleAlert>
       ) : null}
 
       <div className="overflow-x-auto rounded-lg border">
@@ -250,13 +257,5 @@ function MembersTableSkeleton() {
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Something went wrong.";
+  return formatApiErrorMessage(error);
 }

@@ -7,6 +7,7 @@ import { createOrganisation } from "@/api/organisations";
 import { useOrganisation } from "@/auth/use-organisation";
 import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
 import { Button } from "@/components/ui/button";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import {
   Card,
   CardContent,
@@ -207,9 +208,15 @@ export function OrganisationSetupPage() {
             </div>
 
             {submitError ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <DismissibleAlert
+                messageKey={submitError}
+                onDismiss={() => {
+                  setSubmitError(null);
+                }}
+                variant="error"
+              >
                 {submitError}
-              </div>
+              </DismissibleAlert>
             ) : null}
 
             <Button className="w-full sm:w-auto" disabled={isSubmitting} type="submit">

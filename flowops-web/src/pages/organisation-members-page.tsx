@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useOrganisation } from "@/auth/use-organisation";
 import { usePermissions } from "@/auth/use-permissions";
 import { MembersTable } from "@/components/members/members-table";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import {
   Card,
   CardContent,
@@ -47,10 +48,10 @@ export function OrganisationMembersPage() {
           {membershipAccessLoading ? (
             <p className="text-sm text-muted-foreground">Loading permissions…</p>
           ) : !canView ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <DismissibleAlert variant="warning">
               Your role does not include access to member management. Contact an
               organisation admin if you need access.
-            </div>
+            </DismissibleAlert>
           ) : (
             <MembersTable
               canManage={canManage}

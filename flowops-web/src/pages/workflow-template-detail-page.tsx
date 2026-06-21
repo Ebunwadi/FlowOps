@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getWorkflowTemplateById } from "@/api/workflow-templates";
 import { useOrganisation } from "@/auth/use-organisation";
@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { FIELD_TYPE_LABELS } from "@/schemas/workflow-template.schema";
 import { ApiClientError } from "@/types/api";
 import {
@@ -25,6 +26,7 @@ import {
 export function WorkflowTemplateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { currentOrganisation } = useOrganisation();
   const { hasPermission } = usePermissions();
 
@@ -37,6 +39,10 @@ export function WorkflowTemplateDetailPage() {
   const pageState = location.state as { created?: boolean; updated?: boolean } | null;
   const wasJustCreated = Boolean(pageState?.created);
   const wasJustUpdated = Boolean(pageState?.updated);
+
+  const clearPageState = () => {
+    navigate(location.pathname, { replace: true, state: null });
+  };
 
   const templateQuery = useQuery({
     queryKey: ["workflow-templates", id],
@@ -73,11 +79,18 @@ export function WorkflowTemplateDetailPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-[28px] font-semibold tracking-tight">Workflow template</h1>
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <DismissibleAlert
+          messageKey={
+            templateQuery.error instanceof ApiClientError
+              ? templateQuery.error.message
+              : "load-error"
+          }
+          variant="error"
+        >
           {templateQuery.error instanceof ApiClientError
             ? templateQuery.error.message
             : "Unable to load workflow template."}
-        </div>
+        </DismissibleAlert>
         <Button asChild type="button" variant="outline">
           <Link to="/workflows">Back to workflows</Link>
         </Button>
@@ -97,16 +110,16 @@ export function WorkflowTemplateDetailPage() {
   return (
     <div className="space-y-6">
       {wasJustCreated ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <DismissibleAlert onDismiss={clearPageState}>
           Workflow template created successfully. It is saved as a draft until you activate
           it.
-        </div>
+        </DismissibleAlert>
       ) : null}
 
       {wasJustUpdated ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <DismissibleAlert onDismiss={clearPageState}>
           Workflow template updated successfully.
-        </div>
+        </DismissibleAlert>
       ) : null}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

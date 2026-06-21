@@ -7,7 +7,8 @@ import {
   deactivateWorkflowTemplate,
 } from "@/api/workflow-templates";
 import { Button } from "@/components/ui/button";
-import { ApiClientError } from "@/types/api";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
+import { formatApiErrorMessage } from "@/lib/api-errors";
 import type { WorkflowTemplateStatus } from "@/types/workflow-template";
 
 interface WorkflowTemplateActionsProps {
@@ -78,9 +79,15 @@ export function WorkflowTemplateActions({
   return (
     <div className="space-y-3">
       {actionError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <DismissibleAlert
+          messageKey={actionError}
+          onDismiss={() => {
+            setActionError(null);
+          }}
+          variant="error"
+        >
           {actionError}
-        </div>
+        </DismissibleAlert>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
@@ -128,13 +135,5 @@ export function WorkflowTemplateActions({
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Something went wrong.";
+  return formatApiErrorMessage(error);
 }

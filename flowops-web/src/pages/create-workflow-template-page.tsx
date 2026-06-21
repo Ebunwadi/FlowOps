@@ -7,6 +7,7 @@ import { usePermissions } from "@/auth/use-permissions";
 import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
 import { WorkflowTemplateForm } from "@/components/workflows/workflow-template-form";
 import { Button } from "@/components/ui/button";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 
 export function CreateWorkflowTemplatePage() {
   const { currentOrganisation } = useOrganisation();
@@ -37,9 +38,9 @@ export function CreateWorkflowTemplatePage() {
             You do not have permission to create workflow templates.
           </p>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <DismissibleAlert variant="warning">
           Contact an organisation admin if you need access to build workflows.
-        </div>
+        </DismissibleAlert>
         <Button asChild type="button" variant="outline">
           <Link to="/workflows">Back to workflows</Link>
         </Button>

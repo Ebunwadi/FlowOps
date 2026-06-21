@@ -8,6 +8,7 @@ import { useOrganisation } from "@/auth/use-organisation";
 import { AuthSessionCard } from "@/components/auth/auth-session-card";
 import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
 import { Button } from "@/components/ui/button";
+import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { clientLogger } from "@/lib/logger";
 import {
   Card,
@@ -103,11 +104,11 @@ export function HomePage() {
           </Button>
 
           {healthQuery.isError ? (
-            <p className="text-sm text-red-600">
+            <DismissibleAlert variant="error">
               Unable to reach the API. Start the backend with{" "}
               <code className="rounded bg-muted px-1 py-0.5">npm run dev</code> in{" "}
               <code className="rounded bg-muted px-1 py-0.5">flowops-api</code>.
-            </p>
+            </DismissibleAlert>
           ) : null}
 
           {healthQuery.data ? (
