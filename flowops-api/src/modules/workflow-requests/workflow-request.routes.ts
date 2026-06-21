@@ -6,12 +6,14 @@ import { ensureOrganisationContext } from "../../common/middleware/ensureOrganis
 import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
 import {
+  listMyWorkflowRequestsController,
   saveDraftWorkflowRequestController,
   submitDraftWorkflowRequestController,
   submitWorkflowRequestController,
   updateDraftWorkflowRequestController,
 } from "./workflow-request.controller";
 import {
+  listWorkflowRequestsQuerySchema,
   saveDraftWorkflowRequestSchema,
   submitWorkflowRequestSchema,
   updateDraftWorkflowRequestSchema,
@@ -21,6 +23,14 @@ import {
 export const workflowRequestRouter = Router();
 
 workflowRequestRouter.use(authenticate, ensureLocalUser);
+
+workflowRequestRouter.get(
+  "/my",
+  ensureOrganisationContext,
+  requirePermission("requests:view-own"),
+  validateRequest({ query: listWorkflowRequestsQuerySchema }),
+  listMyWorkflowRequestsController,
+);
 
 workflowRequestRouter.post(
   "/",

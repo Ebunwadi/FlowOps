@@ -13,19 +13,24 @@ import {
 import {
   toDraftWorkflowRequestResponse,
   toSubmittedWorkflowRequestResponse,
+  toWorkflowRequestListItem,
   type DraftWorkflowRequestResponse,
+  type PaginatedWorkflowRequestsResponse,
   type SubmittedWorkflowRequestResponse,
 } from "./workflow-request.mapper";
 import { notifyApproversOfPendingRequest } from "./workflow-request.notifications";
 import {
+  countWorkflowRequests,
   createDraftWorkflowRequestRecord,
   createWorkflowRequestWithValues,
   findTemplateForRequestSubmission,
   findWorkflowRequestForMutation,
+  findWorkflowRequests,
   submitDraftWorkflowRequestRecord,
   updateDraftWorkflowRequestRecord,
 } from "./workflow-request.repository";
 import type {
+  ListWorkflowRequestsQuery,
   SaveDraftWorkflowRequestBody,
   SubmittedRequestValue,
   SubmitWorkflowRequestBody,
@@ -148,6 +153,36 @@ export async function submitWorkflowRequest(
   });
 
   return toSubmittedWorkflowRequestResponse(request);
+}
+
+export async function listMyWorkflowRequests(
+  organisationId: string,
+  requesterId: string,
+  query: ListWorkflowRequestsQuery,
+): Promise<PaginatedWorkflowRequestsResponse> {
+  const filters = {
+    requesterId,
+    status: query.status,
+    workflowTemplateId: query.workflowTemplateId,
+    search: query.search,
+    page: query.page,
+    limit: query.limit,
+  };
+
+  const [requests, total] = await Promise.all([
+    findWorkflowRequests(organisationId, filters),
+    countWorkflowRequests(organisationId, filters),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / query.limit);
+
+  return {
+    items: requests.map(toWorkflowRequestListItem),
+    page: query.page,
+    limit: query.limit,
+    total,
+    totalPages,
+  };
 }
 
 export async function saveDraftWorkflowRequest(

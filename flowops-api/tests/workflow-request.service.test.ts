@@ -9,6 +9,7 @@ import { recordWorkflowRequestAuditEvent } from "../src/modules/workflow-request
 import { notifyApproversOfPendingRequest } from "../src/modules/workflow-requests/workflow-request.notifications";
 import * as workflowRequestRepository from "../src/modules/workflow-requests/workflow-request.repository";
 import {
+  listMyWorkflowRequests,
   saveDraftWorkflowRequest,
   submitDraftWorkflowRequest,
   submitWorkflowRequest,
@@ -167,6 +168,85 @@ describe("workflow request service", () => {
       expect(
         workflowRequestRepository.createWorkflowRequestWithValues,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listMyWorkflowRequests", () => {
+    const listRow = {
+      id: requestId,
+      title: "New laptop request",
+      status: "PENDING_APPROVAL" as const,
+      submittedAt: new Date("2026-06-19T10:30:00.000Z"),
+      createdAt: new Date("2026-06-19T09:00:00.000Z"),
+      updatedAt: new Date("2026-06-19T10:30:00.000Z"),
+      workflowTemplate: { id: templateId, name: "Equipment Request" },
+      currentStep: { id: stepId, name: "Manager Approval" },
+    };
+
+    beforeEach(() => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequests)
+        .mockResolvedValue([listRow]);
+      jest
+        .mocked(workflowRequestRepository.countWorkflowRequests)
+        .mockResolvedValue(1);
+    });
+
+    it("scopes the query to the current requester and organisation", async () => {
+      const result = await listMyWorkflowRequests(organisationId, requesterId, {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.workflowTemplate.name).toBe("Equipment Request");
+
+      expect(workflowRequestRepository.findWorkflowRequests).toHaveBeenCalledWith(
+        organisationId,
+        expect.objectContaining({ requesterId, page: 1, limit: 20 }),
+      );
+    });
+
+    it("passes status and template filters through", async () => {
+      await listMyWorkflowRequests(organisationId, requesterId, {
+        status: "DRAFT",
+        workflowTemplateId: templateId,
+        search: "laptop",
+        page: 2,
+        limit: 5,
+      });
+
+      expect(workflowRequestRepository.findWorkflowRequests).toHaveBeenCalledWith(
+        organisationId,
+        expect.objectContaining({
+          requesterId,
+          status: "DRAFT",
+          workflowTemplateId: templateId,
+          search: "laptop",
+          page: 2,
+          limit: 5,
+        }),
+      );
+    });
+
+    it("returns zero totalPages when there are no requests", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequests)
+        .mockResolvedValue([]);
+      jest
+        .mocked(workflowRequestRepository.countWorkflowRequests)
+        .mockResolvedValue(0);
+
+      const result = await listMyWorkflowRequests(organisationId, requesterId, {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.total).toBe(0);
+      expect(result.totalPages).toBe(0);
+      expect(result.items).toEqual([]);
     });
   });
 
