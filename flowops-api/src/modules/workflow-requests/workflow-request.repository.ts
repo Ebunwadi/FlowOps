@@ -70,6 +70,102 @@ const requestForMutationSelect = {
   },
 } as const;
 
+const requestListSelect = {
+  id: true,
+  title: true,
+  status: true,
+  submittedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  workflowTemplate: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  currentStep: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} as const;
+
+export interface ListWorkflowRequestsFilters {
+  requesterId?: string;
+  status?: WorkflowRequestStatus;
+  workflowTemplateId?: string;
+  search?: string;
+  page: number;
+  limit: number;
+}
+
+function buildWorkflowRequestListWhere(
+  organisationId: string,
+  filters: Pick<
+    ListWorkflowRequestsFilters,
+    "requesterId" | "status" | "workflowTemplateId" | "search"
+  >,
+) {
+  return {
+    organisationId,
+    ...(filters.requesterId ? { requesterId: filters.requesterId } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.workflowTemplateId
+      ? { workflowTemplateId: filters.workflowTemplateId }
+      : {}),
+    ...(filters.search
+      ? {
+          OR: [
+            {
+              title: {
+                contains: filters.search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              workflowTemplate: {
+                name: {
+                  contains: filters.search,
+                  mode: "insensitive" as const,
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+}
+
+export async function findWorkflowRequests(
+  organisationId: string,
+  filters: ListWorkflowRequestsFilters,
+  db: DbClient = prisma,
+) {
+  const skip = (filters.page - 1) * filters.limit;
+
+  return db.workflowRequest.findMany({
+    where: buildWorkflowRequestListWhere(organisationId, filters),
+    select: requestListSelect,
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    skip,
+    take: filters.limit,
+  });
+}
+
+export async function countWorkflowRequests(
+  organisationId: string,
+  filters: Pick<
+    ListWorkflowRequestsFilters,
+    "requesterId" | "status" | "workflowTemplateId" | "search"
+  >,
+  db: DbClient = prisma,
+) {
+  return db.workflowRequest.count({
+    where: buildWorkflowRequestListWhere(organisationId, filters),
+  });
+}
+
 export async function findTemplateForRequestSubmission(
   workflowTemplateId: string,
   organisationId: string,

@@ -7,6 +7,7 @@ import {
 import { sendSuccess } from "../../common/http/apiResponse";
 import { asyncHandler } from "../../common/middleware/asyncHandler";
 import * as workflowRequestService from "./workflow-request.service";
+import type { ListWorkflowRequestsQuery } from "./workflow-request.validation";
 
 function requireLocalUser(req: Request) {
   if (!req.localUser) {
@@ -38,6 +39,24 @@ export const submitWorkflowRequestController = asyncHandler(
       data,
       message: "Workflow request submitted successfully",
       statusCode: 201,
+    });
+  },
+);
+
+export const listMyWorkflowRequestsController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const query = req.query as unknown as ListWorkflowRequestsQuery;
+    const data = await workflowRequestService.listMyWorkflowRequests(
+      organisation.id,
+      localUser.id,
+      query,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow requests retrieved successfully",
     });
   },
 );
