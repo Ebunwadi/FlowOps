@@ -7,6 +7,7 @@ import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
 import {
   listMyWorkflowRequestsController,
+  listOrganisationWorkflowRequestsController,
   saveDraftWorkflowRequestController,
   submitDraftWorkflowRequestController,
   submitWorkflowRequestController,
@@ -30,6 +31,14 @@ workflowRequestRouter.get(
   requirePermission("requests:view-own"),
   validateRequest({ query: listWorkflowRequestsQuerySchema }),
   listMyWorkflowRequestsController,
+);
+
+workflowRequestRouter.get(
+  "/",
+  ensureOrganisationContext,
+  requirePermission("requests:view-all"),
+  validateRequest({ query: listWorkflowRequestsQuerySchema }),
+  listOrganisationWorkflowRequestsController,
 );
 
 workflowRequestRouter.post(

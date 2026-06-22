@@ -10,6 +10,7 @@ import { notifyApproversOfPendingRequest } from "../src/modules/workflow-request
 import * as workflowRequestRepository from "../src/modules/workflow-requests/workflow-request.repository";
 import {
   listMyWorkflowRequests,
+  listOrganisationWorkflowRequests,
   saveDraftWorkflowRequest,
   submitDraftWorkflowRequest,
   submitWorkflowRequest,
@@ -180,6 +181,12 @@ describe("workflow request service", () => {
       createdAt: new Date("2026-06-19T09:00:00.000Z"),
       updatedAt: new Date("2026-06-19T10:30:00.000Z"),
       workflowTemplate: { id: templateId, name: "Equipment Request" },
+      requester: {
+        id: requesterId,
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+      },
       currentStep: { id: stepId, name: "Manager Approval" },
     };
 
@@ -247,6 +254,66 @@ describe("workflow request service", () => {
       expect(result.total).toBe(0);
       expect(result.totalPages).toBe(0);
       expect(result.items).toEqual([]);
+    });
+  });
+
+  describe("listOrganisationWorkflowRequests", () => {
+    const listRow = {
+      id: requestId,
+      title: "New laptop request",
+      status: "PENDING_APPROVAL" as const,
+      submittedAt: new Date("2026-06-19T10:30:00.000Z"),
+      createdAt: new Date("2026-06-19T09:00:00.000Z"),
+      updatedAt: new Date("2026-06-19T10:30:00.000Z"),
+      workflowTemplate: { id: templateId, name: "Equipment Request" },
+      requester: {
+        id: requesterId,
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+      },
+      currentStep: { id: stepId, name: "Manager Approval" },
+    };
+
+    beforeEach(() => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequests)
+        .mockResolvedValue([listRow]);
+      jest
+        .mocked(workflowRequestRepository.countWorkflowRequests)
+        .mockResolvedValue(1);
+    });
+
+    it("lists org-wide requests without forcing a requester filter", async () => {
+      const result = await listOrganisationWorkflowRequests(organisationId, {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.requester.email).toBe("ada@example.com");
+
+      expect(workflowRequestRepository.findWorkflowRequests).toHaveBeenCalledWith(
+        organisationId,
+        expect.objectContaining({ requesterId: undefined, page: 1, limit: 20 }),
+      );
+    });
+
+    it("allows filtering by a specific requester", async () => {
+      await listOrganisationWorkflowRequests(organisationId, {
+        requesterId: otherUserId,
+        status: "APPROVED",
+        page: 1,
+        limit: 20,
+      });
+
+      expect(workflowRequestRepository.findWorkflowRequests).toHaveBeenCalledWith(
+        organisationId,
+        expect.objectContaining({
+          requesterId: otherUserId,
+          status: "APPROVED",
+        }),
+      );
     });
   });
 
