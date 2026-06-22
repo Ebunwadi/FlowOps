@@ -46,12 +46,13 @@ describe("DEFAULT_ORGANISATION_ROLES", () => {
     expect(adminPermissions).toHaveLength(30);
   });
 
-  it("scopes Staff to submitting and tracking own requests", () => {
+  it("scopes Staff to submitting, tracking, and cancelling own requests", () => {
     expect(permissionsForRole(DEFAULT_ROLE_NAMES.STAFF)).toEqual([
       "organisation:view",
       "workflows:view",
       "requests:create",
       "requests:view-own",
+      "requests:cancel",
       "notifications:view",
       "notifications:update",
     ]);

@@ -10,6 +10,7 @@ import { recordWorkflowRequestAuditEvent } from "../src/modules/workflow-request
 import { notifyApproversOfPendingRequest } from "../src/modules/workflow-requests/workflow-request.notifications";
 import * as workflowRequestRepository from "../src/modules/workflow-requests/workflow-request.repository";
 import {
+  cancelWorkflowRequest,
   getWorkflowRequestDetail,
   listMyWorkflowRequests,
   listOrganisationWorkflowRequests,
@@ -454,6 +455,95 @@ describe("workflow request service", () => {
           status: "APPROVED",
         }),
       );
+    });
+  });
+
+  describe("cancelWorkflowRequest", () => {
+    const cancellableRequest = {
+      id: requestId,
+      requesterId,
+      status: "PENDING_APPROVAL" as const,
+      workflowTemplateId: templateId,
+      title: "New laptop request",
+      values: [],
+    };
+
+    beforeEach(() => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue(cancellableRequest);
+      jest
+        .mocked(workflowRequestRepository.markWorkflowRequestCancelled)
+        .mockResolvedValue({
+          id: requestId,
+          title: "New laptop request",
+          status: "CANCELLED",
+          cancelledAt: new Date("2026-06-20T08:00:00.000Z"),
+        });
+    });
+
+    it("cancels an eligible request and records an audit entry", async () => {
+      const result = await cancelWorkflowRequest(
+        organisationId,
+        requesterId,
+        requestId,
+      );
+
+      expect(result.status).toBe("CANCELLED");
+      expect(result.cancelledAt).toBe("2026-06-20T08:00:00.000Z");
+      expect(
+        workflowRequestRepository.markWorkflowRequestCancelled,
+      ).toHaveBeenCalledTimes(1);
+      expect(recordWorkflowRequestAuditEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects cancellation by a non-requester", async () => {
+      await expect(
+        cancelWorkflowRequest(organisationId, otherUserId, requestId),
+      ).rejects.toBeInstanceOf(AuthorizationError);
+      expect(
+        workflowRequestRepository.markWorkflowRequestCancelled,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rejects cancelling an approved (completed) request", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue({ ...cancellableRequest, status: "APPROVED" });
+
+      await expect(
+        cancelWorkflowRequest(organisationId, requesterId, requestId),
+      ).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("rejects cancelling a rejected request", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue({ ...cancellableRequest, status: "REJECTED" });
+
+      await expect(
+        cancelWorkflowRequest(organisationId, requesterId, requestId),
+      ).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("rejects cancelling an already cancelled request", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue({ ...cancellableRequest, status: "CANCELLED" });
+
+      await expect(
+        cancelWorkflowRequest(organisationId, requesterId, requestId),
+      ).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("returns 404 when the request does not exist", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue(null);
+
+      await expect(
+        cancelWorkflowRequest(organisationId, requesterId, requestId),
+      ).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 

@@ -12,10 +12,12 @@ import {
   WORKFLOW_REQUEST_AUDIT_ACTIONS,
 } from "./workflow-request.audit";
 import {
+  toCancelledWorkflowRequestResponse,
   toDraftWorkflowRequestResponse,
   toSubmittedWorkflowRequestResponse,
   toWorkflowRequestDetailResponse,
   toWorkflowRequestListItem,
+  type CancelledWorkflowRequestResponse,
   type DraftWorkflowRequestResponse,
   type PaginatedWorkflowRequestsResponse,
   type SubmittedWorkflowRequestResponse,
@@ -30,6 +32,7 @@ import {
   findWorkflowRequestDetail,
   findWorkflowRequestForMutation,
   findWorkflowRequests,
+  markWorkflowRequestCancelled,
   submitDraftWorkflowRequestRecord,
   updateDraftWorkflowRequestRecord,
 } from "./workflow-request.repository";
@@ -273,6 +276,73 @@ async function viewerCanAccessRequest(
   // 3. Anyone with the organisation-wide view permission can view it.
   const permissionKeys = await findPermissionKeysByRoleId(viewer.roleId);
   return permissionKeys.includes(REQUESTS_VIEW_ALL_PERMISSION);
+}
+
+export async function cancelWorkflowRequest(
+  organisationId: string,
+  requesterId: string,
+  workflowRequestId: string,
+): Promise<CancelledWorkflowRequestResponse> {
+  const existing = await findWorkflowRequestForMutation(
+    workflowRequestId,
+    organisationId,
+  );
+
+  if (!existing) {
+    throw new NotFoundError("Workflow request not found");
+  }
+
+  if (existing.requesterId !== requesterId) {
+    throw new AuthorizationError("You can only cancel your own requests");
+  }
+
+  assertRequestCanBeCancelled(existing.status);
+
+  const cancelledAt = new Date();
+  const request = await markWorkflowRequestCancelled(
+    workflowRequestId,
+    cancelledAt,
+  );
+
+  logger.info(
+    {
+      origin: "api",
+      event: "workflow_request.cancelled",
+      organisationId,
+      workflowRequestId,
+      requesterId,
+      previousStatus: existing.status,
+    },
+    `[API] Workflow request "${workflowRequestId}" cancelled`,
+  );
+
+  recordWorkflowRequestAuditEvent({
+    action: WORKFLOW_REQUEST_AUDIT_ACTIONS.CANCELLED,
+    organisationId,
+    actorUserId: requesterId,
+    entityId: workflowRequestId,
+    metadata: {
+      workflowTemplateId: existing.workflowTemplateId,
+      status: request.status,
+      previousStatus: existing.status,
+    },
+  });
+
+  return toCancelledWorkflowRequestResponse(request);
+}
+
+function assertRequestCanBeCancelled(status: string): void {
+  if (status === "APPROVED") {
+    throw new ConflictError("Completed requests cannot be cancelled");
+  }
+
+  if (status === "REJECTED") {
+    throw new ConflictError("Rejected requests cannot be cancelled");
+  }
+
+  if (status === "CANCELLED") {
+    throw new ConflictError("This request has already been cancelled");
+  }
 }
 
 export async function saveDraftWorkflowRequest(

@@ -85,6 +85,23 @@ export const listMyWorkflowRequestsController = asyncHandler(
   },
 );
 
+export const cancelWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const data = await workflowRequestService.cancelWorkflowRequest(
+      organisation.id,
+      localUser.id,
+      req.params.id,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow request cancelled successfully",
+    });
+  },
+);
+
 export const getWorkflowRequestDetailController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const localUser = requireLocalUser(req);
