@@ -4,6 +4,7 @@ import { OrganisationRequiredRoute } from "@/components/auth/organisation-requir
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { AuditLogsPage } from "@/pages/audit-logs-page";
+import { AvailableWorkflowsPage } from "@/pages/available-workflows-page";
 import { DashboardPage } from "@/pages/dashboard-page";
 import { HomePage } from "@/pages/home-page";
 import { NotFoundPage } from "@/pages/not-found-page";
@@ -58,6 +59,10 @@ export const router = createBrowserRouter([
               {
                 path: "requests",
                 element: <RequestsPage />,
+              },
+              {
+                path: "requests/start",
+                element: <AvailableWorkflowsPage />,
               },
               {
                 path: "settings",
