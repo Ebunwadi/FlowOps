@@ -237,6 +237,27 @@ export function toWorkflowRequestDetailResponse(
   };
 }
 
+export interface CancelledWorkflowRequestResponse {
+  id: string;
+  title: string | null;
+  status: WorkflowRequestStatus;
+  cancelledAt: string | null;
+}
+
+export function toCancelledWorkflowRequestResponse(request: {
+  id: string;
+  title: string | null;
+  status: WorkflowRequestStatus;
+  cancelledAt: Date | null;
+}): CancelledWorkflowRequestResponse {
+  return {
+    id: request.id,
+    title: request.title,
+    status: request.status,
+    cancelledAt: request.cancelledAt ? request.cancelledAt.toISOString() : null,
+  };
+}
+
 export interface WorkflowRequestValueResponse {
   workflowFieldId: string;
   value: Prisma.JsonValue;

@@ -318,6 +318,26 @@ export async function findWorkflowRequestDetail(
   });
 }
 
+export async function markWorkflowRequestCancelled(
+  workflowRequestId: string,
+  cancelledAt: Date,
+  db: DbClient = prisma,
+) {
+  return db.workflowRequest.update({
+    where: { id: workflowRequestId },
+    data: {
+      status: "CANCELLED",
+      cancelledAt,
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      cancelledAt: true,
+    },
+  });
+}
+
 export interface CreateDraftWorkflowRequestRecordInput {
   organisationId: string;
   workflowTemplateId: string;

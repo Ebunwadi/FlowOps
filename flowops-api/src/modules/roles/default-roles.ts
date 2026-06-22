@@ -65,6 +65,7 @@ const MANAGER_PERMISSION_KEYS = [
   "requests:create",
   "requests:view-own",
   "requests:view-all",
+  "requests:cancel",
   "approvals:view",
   "approvals:approve",
   "approvals:reject",
@@ -79,6 +80,7 @@ const APPROVER_PERMISSION_KEYS = [
   "workflows:view",
   "requests:create",
   "requests:view-own",
+  "requests:cancel",
   "approvals:view",
   "approvals:approve",
   "approvals:reject",
@@ -91,6 +93,7 @@ const STAFF_PERMISSION_KEYS = [
   "workflows:view",
   "requests:create",
   "requests:view-own",
+  "requests:cancel",
   "notifications:view",
   "notifications:update",
 ] as const satisfies readonly DefaultPermissionKey[];
