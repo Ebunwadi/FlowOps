@@ -25,6 +25,14 @@ function requireOrganisation(req: Request) {
   return req.organisation;
 }
 
+function requireMembership(req: Request) {
+  if (!req.membership) {
+    throw new AuthorizationError("Organisation context is required");
+  }
+
+  return req.membership;
+}
+
 export const submitWorkflowRequestController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const localUser = requireLocalUser(req);
@@ -73,6 +81,24 @@ export const listMyWorkflowRequestsController = asyncHandler(
     sendSuccess(res, {
       data,
       message: "Workflow requests retrieved successfully",
+    });
+  },
+);
+
+export const getWorkflowRequestDetailController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const membership = requireMembership(req);
+    const data = await workflowRequestService.getWorkflowRequestDetail(
+      organisation.id,
+      { userId: localUser.id, roleId: membership.roleId },
+      req.params.id,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow request retrieved successfully",
     });
   },
 );

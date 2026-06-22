@@ -5,10 +5,12 @@ import {
   ValidationError,
 } from "../src/common/errors/httpErrors";
 import { prisma } from "../src/config/database";
+import * as roleRepository from "../src/modules/roles/role.repository";
 import { recordWorkflowRequestAuditEvent } from "../src/modules/workflow-requests/workflow-request.audit";
 import { notifyApproversOfPendingRequest } from "../src/modules/workflow-requests/workflow-request.notifications";
 import * as workflowRequestRepository from "../src/modules/workflow-requests/workflow-request.repository";
 import {
+  getWorkflowRequestDetail,
   listMyWorkflowRequests,
   listOrganisationWorkflowRequests,
   saveDraftWorkflowRequest,
@@ -18,6 +20,7 @@ import {
 } from "../src/modules/workflow-requests/workflow-request.service";
 
 jest.mock("../src/modules/workflow-requests/workflow-request.repository");
+jest.mock("../src/modules/roles/role.repository");
 jest.mock("../src/modules/workflow-requests/workflow-request.notifications", () => ({
   notifyApproversOfPendingRequest: jest.fn(),
 }));
@@ -103,6 +106,143 @@ describe("workflow request service", () => {
     jest
       .mocked(workflowRequestRepository.createWorkflowRequestWithValues)
       .mockResolvedValue(submittedRecord);
+    jest.mocked(roleRepository.findPermissionKeysByRoleId).mockResolvedValue([]);
+  });
+
+  describe("getWorkflowRequestDetail", () => {
+    const staffRoleId = "55555555-5555-4555-8555-555555555555";
+    const adminRoleId = "66666666-6666-4666-8666-666666666666";
+
+    const detailRecord = {
+      id: requestId,
+      organisationId,
+      requesterId,
+      title: "New laptop request",
+      status: "PENDING_APPROVAL" as const,
+      submittedAt: new Date("2026-06-19T10:30:00.000Z"),
+      completedAt: null,
+      cancelledAt: null,
+      createdAt: new Date("2026-06-19T09:00:00.000Z"),
+      updatedAt: new Date("2026-06-19T10:30:00.000Z"),
+      requester: {
+        id: requesterId,
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+      },
+      workflowTemplate: {
+        id: templateId,
+        name: "Equipment Request",
+        category: "IT",
+        steps: [
+          {
+            id: stepId,
+            name: "Manager Approval",
+            description: null,
+            stepOrder: 1,
+            slaHours: null,
+            allowDelegation: false,
+            approverRole: { id: approverRoleId, name: "Manager" },
+          },
+        ],
+      },
+      currentStep: {
+        id: stepId,
+        name: "Manager Approval",
+        stepOrder: 1,
+        approverRoleId,
+      },
+      values: [
+        {
+          workflowFieldId: itemFieldId,
+          value: "Laptop",
+          workflowField: {
+            fieldKey: "item_requested",
+            label: "Item requested",
+            fieldType: "SHORT_TEXT" as const,
+          },
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestDetail)
+        .mockResolvedValue(detailRecord);
+    });
+
+    it("lets the requester view their own request with submitted values and current step", async () => {
+      const result = await getWorkflowRequestDetail(
+        organisationId,
+        { userId: requesterId, roleId: staffRoleId },
+        requestId,
+      );
+
+      expect(result.id).toBe(requestId);
+      expect(result.currentStep?.id).toBe(stepId);
+      expect(result.values).toEqual([
+        {
+          workflowFieldId: itemFieldId,
+          fieldKey: "item_requested",
+          label: "Item requested",
+          fieldType: "SHORT_TEXT",
+          value: "Laptop",
+        },
+      ]);
+      expect(roleRepository.findPermissionKeysByRoleId).not.toHaveBeenCalled();
+    });
+
+    it("lets an approver assigned to the current step role view the request", async () => {
+      const result = await getWorkflowRequestDetail(
+        organisationId,
+        { userId: otherUserId, roleId: approverRoleId },
+        requestId,
+      );
+
+      expect(result.id).toBe(requestId);
+    });
+
+    it("lets a user with requests:view-all view the request", async () => {
+      jest
+        .mocked(roleRepository.findPermissionKeysByRoleId)
+        .mockResolvedValue(["requests:view-all"]);
+
+      const result = await getWorkflowRequestDetail(
+        organisationId,
+        { userId: otherUserId, roleId: adminRoleId },
+        requestId,
+      );
+
+      expect(result.id).toBe(requestId);
+    });
+
+    it("rejects an unauthorised user with 403", async () => {
+      jest
+        .mocked(roleRepository.findPermissionKeysByRoleId)
+        .mockResolvedValue(["requests:view-own"]);
+
+      await expect(
+        getWorkflowRequestDetail(
+          organisationId,
+          { userId: otherUserId, roleId: staffRoleId },
+          requestId,
+        ),
+      ).rejects.toBeInstanceOf(AuthorizationError);
+    });
+
+    it("returns 404 when the request does not exist", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestDetail)
+        .mockResolvedValue(null);
+
+      await expect(
+        getWorkflowRequestDetail(
+          organisationId,
+          { userId: requesterId, roleId: staffRoleId },
+          requestId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
   });
 
   describe("submitWorkflowRequest", () => {

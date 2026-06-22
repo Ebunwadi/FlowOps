@@ -1,4 +1,8 @@
-import type { Prisma, WorkflowRequestStatus } from "../../generated/prisma/client";
+import type {
+  Prisma,
+  WorkflowFieldType,
+  WorkflowRequestStatus,
+} from "../../generated/prisma/client";
 
 export interface WorkflowRequestStepSummary {
   id: string;
@@ -94,6 +98,142 @@ export function toWorkflowRequestListItem(request: {
     submittedAt: request.submittedAt ? request.submittedAt.toISOString() : null,
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString(),
+  };
+}
+
+export interface WorkflowRequestValueDetail {
+  workflowFieldId: string;
+  fieldKey: string;
+  label: string;
+  fieldType: WorkflowFieldType;
+  value: Prisma.JsonValue;
+}
+
+export interface WorkflowRequestApprovalStepDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  stepOrder: number;
+  slaHours: number | null;
+  allowDelegation: boolean;
+  approverRole: { id: string; name: string };
+  isCurrent: boolean;
+}
+
+export interface WorkflowRequestDetailResponse {
+  id: string;
+  organisationId: string;
+  title: string | null;
+  status: WorkflowRequestStatus;
+  workflowTemplate: { id: string; name: string; category: string | null };
+  requester: WorkflowRequestRequesterSummary;
+  currentStep: { id: string; name: string; stepOrder: number } | null;
+  values: WorkflowRequestValueDetail[];
+  approvalSteps: WorkflowRequestApprovalStepDetail[];
+  submittedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments: never[];
+  history: never[];
+}
+
+interface WorkflowRequestDetailRecord {
+  id: string;
+  organisationId: string;
+  title: string | null;
+  status: WorkflowRequestStatus;
+  submittedAt: Date | null;
+  completedAt: Date | null;
+  cancelledAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  requester: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+  workflowTemplate: {
+    id: string;
+    name: string;
+    category: string | null;
+    steps: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      stepOrder: number;
+      slaHours: number | null;
+      allowDelegation: boolean;
+      approverRole: { id: string; name: string };
+    }>;
+  };
+  currentStep: { id: string; name: string; stepOrder: number } | null;
+  values: Array<{
+    workflowFieldId: string;
+    value: Prisma.JsonValue;
+    workflowField: {
+      fieldKey: string;
+      label: string;
+      fieldType: WorkflowFieldType;
+    };
+  }>;
+}
+
+export function toWorkflowRequestDetailResponse(
+  request: WorkflowRequestDetailRecord,
+): WorkflowRequestDetailResponse {
+  return {
+    id: request.id,
+    organisationId: request.organisationId,
+    title: request.title,
+    status: request.status,
+    workflowTemplate: {
+      id: request.workflowTemplate.id,
+      name: request.workflowTemplate.name,
+      category: request.workflowTemplate.category,
+    },
+    requester: {
+      id: request.requester.id,
+      firstName: request.requester.firstName,
+      lastName: request.requester.lastName,
+      email: request.requester.email,
+    },
+    currentStep: request.currentStep
+      ? {
+          id: request.currentStep.id,
+          name: request.currentStep.name,
+          stepOrder: request.currentStep.stepOrder,
+        }
+      : null,
+    values: request.values.map((value) => ({
+      workflowFieldId: value.workflowFieldId,
+      fieldKey: value.workflowField.fieldKey,
+      label: value.workflowField.label,
+      fieldType: value.workflowField.fieldType,
+      value: value.value,
+    })),
+    approvalSteps: request.workflowTemplate.steps.map((step) => ({
+      id: step.id,
+      name: step.name,
+      description: step.description,
+      stepOrder: step.stepOrder,
+      slaHours: step.slaHours,
+      allowDelegation: step.allowDelegation,
+      approverRole: {
+        id: step.approverRole.id,
+        name: step.approverRole.name,
+      },
+      isCurrent: request.currentStep?.id === step.id,
+    })),
+    submittedAt: request.submittedAt ? request.submittedAt.toISOString() : null,
+    completedAt: request.completedAt ? request.completedAt.toISOString() : null,
+    cancelledAt: request.cancelledAt ? request.cancelledAt.toISOString() : null,
+    createdAt: request.createdAt.toISOString(),
+    updatedAt: request.updatedAt.toISOString(),
+    attachments: [],
+    history: [],
   };
 }
 
