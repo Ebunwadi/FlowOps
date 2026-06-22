@@ -6,6 +6,7 @@ import {
 } from "../../common/errors/httpErrors";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
+import { findPermissionKeysByRoleId } from "../roles/role.repository";
 import {
   recordWorkflowRequestAuditEvent,
   WORKFLOW_REQUEST_AUDIT_ACTIONS,
@@ -13,10 +14,12 @@ import {
 import {
   toDraftWorkflowRequestResponse,
   toSubmittedWorkflowRequestResponse,
+  toWorkflowRequestDetailResponse,
   toWorkflowRequestListItem,
   type DraftWorkflowRequestResponse,
   type PaginatedWorkflowRequestsResponse,
   type SubmittedWorkflowRequestResponse,
+  type WorkflowRequestDetailResponse,
 } from "./workflow-request.mapper";
 import { notifyApproversOfPendingRequest } from "./workflow-request.notifications";
 import {
@@ -24,6 +27,7 @@ import {
   createDraftWorkflowRequestRecord,
   createWorkflowRequestWithValues,
   findTemplateForRequestSubmission,
+  findWorkflowRequestDetail,
   findWorkflowRequestForMutation,
   findWorkflowRequests,
   submitDraftWorkflowRequestRecord,
@@ -212,6 +216,63 @@ export async function listOrganisationWorkflowRequests(
     total,
     totalPages,
   };
+}
+
+export interface WorkflowRequestViewer {
+  userId: string;
+  roleId: string;
+}
+
+const REQUESTS_VIEW_ALL_PERMISSION = "requests:view-all";
+
+export async function getWorkflowRequestDetail(
+  organisationId: string,
+  viewer: WorkflowRequestViewer,
+  workflowRequestId: string,
+): Promise<WorkflowRequestDetailResponse> {
+  const request = await findWorkflowRequestDetail(
+    workflowRequestId,
+    organisationId,
+  );
+
+  if (!request) {
+    throw new NotFoundError("Workflow request not found");
+  }
+
+  const canView = await viewerCanAccessRequest(viewer, {
+    requesterId: request.requesterId,
+    currentStepApproverRoleId: request.currentStep?.approverRoleId ?? null,
+  });
+
+  if (!canView) {
+    throw new AuthorizationError(
+      "You do not have permission to view this workflow request",
+    );
+  }
+
+  return toWorkflowRequestDetailResponse(request);
+}
+
+async function viewerCanAccessRequest(
+  viewer: WorkflowRequestViewer,
+  request: { requesterId: string; currentStepApproverRoleId: string | null },
+): Promise<boolean> {
+  // 1. The requester can always view their own request.
+  if (request.requesterId === viewer.userId) {
+    return true;
+  }
+
+  // 2. An approver assigned to the current step's role can view it.
+  if (
+    request.currentStepApproverRoleId !== null &&
+    request.currentStepApproverRoleId === viewer.roleId
+  ) {
+    return true;
+  }
+
+  // 3. Anyone with the organisation-wide view permission can view it.
+  const permissionKeys = await findPermissionKeysByRoleId(viewer.roleId);
+  return permissionKeys.includes(REQUESTS_VIEW_ALL_PERMISSION);
 }
 
 export async function saveDraftWorkflowRequest(

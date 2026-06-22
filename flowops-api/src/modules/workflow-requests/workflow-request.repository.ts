@@ -237,6 +237,87 @@ export async function findWorkflowRequestForMutation(
   });
 }
 
+const requestDetailSelect = {
+  id: true,
+  organisationId: true,
+  requesterId: true,
+  title: true,
+  status: true,
+  submittedAt: true,
+  completedAt: true,
+  cancelledAt: true,
+  createdAt: true,
+  updatedAt: true,
+  requester: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+    },
+  },
+  workflowTemplate: {
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      steps: {
+        orderBy: { stepOrder: "asc" as const },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          stepOrder: true,
+          slaHours: true,
+          allowDelegation: true,
+          approverRole: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  currentStep: {
+    select: {
+      id: true,
+      name: true,
+      stepOrder: true,
+      approverRoleId: true,
+    },
+  },
+  values: {
+    orderBy: { workflowField: { fieldOrder: "asc" as const } },
+    select: {
+      workflowFieldId: true,
+      value: true,
+      workflowField: {
+        select: {
+          fieldKey: true,
+          label: true,
+          fieldType: true,
+        },
+      },
+    },
+  },
+} as const;
+
+export async function findWorkflowRequestDetail(
+  workflowRequestId: string,
+  organisationId: string,
+  db: DbClient = prisma,
+) {
+  return db.workflowRequest.findFirst({
+    where: {
+      id: workflowRequestId,
+      organisationId,
+    },
+    select: requestDetailSelect,
+  });
+}
+
 export interface CreateDraftWorkflowRequestRecordInput {
   organisationId: string;
   workflowTemplateId: string;

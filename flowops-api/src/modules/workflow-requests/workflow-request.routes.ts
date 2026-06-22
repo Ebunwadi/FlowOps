@@ -6,6 +6,7 @@ import { ensureOrganisationContext } from "../../common/middleware/ensureOrganis
 import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
 import {
+  getWorkflowRequestDetailController,
   listMyWorkflowRequestsController,
   listOrganisationWorkflowRequestsController,
   saveDraftWorkflowRequestController,
@@ -74,4 +75,12 @@ workflowRequestRouter.post(
   requirePermission("requests:create"),
   validateRequest({ params: workflowRequestParamsSchema }),
   submitDraftWorkflowRequestController,
+);
+
+// Access control (requester / view-all / assigned approver) is enforced in the service.
+workflowRequestRouter.get(
+  "/:id",
+  ensureOrganisationContext,
+  validateRequest({ params: workflowRequestParamsSchema }),
+  getWorkflowRequestDetailController,
 );
