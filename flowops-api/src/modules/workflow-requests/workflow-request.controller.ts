@@ -43,6 +43,22 @@ export const submitWorkflowRequestController = asyncHandler(
   },
 );
 
+export const listOrganisationWorkflowRequestsController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const organisation = requireOrganisation(req);
+    const query = req.query as unknown as ListWorkflowRequestsQuery;
+    const data = await workflowRequestService.listOrganisationWorkflowRequests(
+      organisation.id,
+      query,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow requests retrieved successfully",
+    });
+  },
+);
+
 export const listMyWorkflowRequestsController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const localUser = requireLocalUser(req);

@@ -83,6 +83,14 @@ const requestListSelect = {
       name: true,
     },
   },
+  requester: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+    },
+  },
   currentStep: {
     select: {
       id: true,

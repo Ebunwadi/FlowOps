@@ -31,11 +31,19 @@ export function toSubmittedWorkflowRequestResponse(request: {
   };
 }
 
+export interface WorkflowRequestRequesterSummary {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}
+
 export interface WorkflowRequestListItem {
   id: string;
   title: string | null;
   status: WorkflowRequestStatus;
   workflowTemplate: { id: string; name: string };
+  requester: WorkflowRequestRequesterSummary;
   currentStep: WorkflowRequestStepSummary | null;
   submittedAt: string | null;
   createdAt: string;
@@ -58,6 +66,12 @@ export function toWorkflowRequestListItem(request: {
   createdAt: Date;
   updatedAt: Date;
   workflowTemplate: { id: string; name: string };
+  requester: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
   currentStep: { id: string; name: string } | null;
 }): WorkflowRequestListItem {
   return {
@@ -67,6 +81,12 @@ export function toWorkflowRequestListItem(request: {
     workflowTemplate: {
       id: request.workflowTemplate.id,
       name: request.workflowTemplate.name,
+    },
+    requester: {
+      id: request.requester.id,
+      firstName: request.requester.firstName,
+      lastName: request.requester.lastName,
+      email: request.requester.email,
     },
     currentStep: request.currentStep
       ? { id: request.currentStep.id, name: request.currentStep.name }

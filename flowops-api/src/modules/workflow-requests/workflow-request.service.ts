@@ -185,6 +185,35 @@ export async function listMyWorkflowRequests(
   };
 }
 
+export async function listOrganisationWorkflowRequests(
+  organisationId: string,
+  query: ListWorkflowRequestsQuery,
+): Promise<PaginatedWorkflowRequestsResponse> {
+  const filters = {
+    requesterId: query.requesterId,
+    status: query.status,
+    workflowTemplateId: query.workflowTemplateId,
+    search: query.search,
+    page: query.page,
+    limit: query.limit,
+  };
+
+  const [requests, total] = await Promise.all([
+    findWorkflowRequests(organisationId, filters),
+    countWorkflowRequests(organisationId, filters),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / query.limit);
+
+  return {
+    items: requests.map(toWorkflowRequestListItem),
+    page: query.page,
+    limit: query.limit,
+    total,
+    totalPages,
+  };
+}
+
 export async function saveDraftWorkflowRequest(
   organisationId: string,
   requesterId: string,
