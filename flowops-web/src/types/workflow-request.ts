@@ -1,3 +1,5 @@
+import type { WorkflowFieldType } from "@/types/workflow-template";
+
 export const WORKFLOW_REQUEST_STATUSES = [
   "DRAFT",
   "SUBMITTED",
@@ -76,6 +78,61 @@ export interface PaginatedWorkflowRequestsResponse {
   totalPages: number;
 }
 
+export interface WorkflowRequestValueDetail {
+  workflowFieldId: string;
+  fieldKey: string;
+  label: string;
+  fieldType: WorkflowFieldType;
+  value: unknown;
+}
+
+export interface WorkflowRequestApprovalStepDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  stepOrder: number;
+  slaHours: number | null;
+  allowDelegation: boolean;
+  approverRole: { id: string; name: string };
+  isCurrent: boolean;
+}
+
+export interface WorkflowRequestDetailResponse {
+  id: string;
+  organisationId: string;
+  title: string | null;
+  status: WorkflowRequestStatus;
+  workflowTemplate: { id: string; name: string; category: string | null };
+  requester: WorkflowRequestRequesterSummary;
+  currentStep: { id: string; name: string; stepOrder: number } | null;
+  values: WorkflowRequestValueDetail[];
+  approvalSteps: WorkflowRequestApprovalStepDetail[];
+  submittedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments: never[];
+  history: never[];
+}
+
+export interface CancelledWorkflowRequestResponse {
+  id: string;
+  title: string | null;
+  status: WorkflowRequestStatus;
+  cancelledAt: string | null;
+}
+
+const CANCELLABLE_STATUSES: readonly WorkflowRequestStatus[] = [
+  "DRAFT",
+  "SUBMITTED",
+  "PENDING_APPROVAL",
+];
+
+export function isCancellableStatus(status: WorkflowRequestStatus): boolean {
+  return CANCELLABLE_STATUSES.includes(status);
+}
+
 const STATUS_LABELS: Record<WorkflowRequestStatus, string> = {
   DRAFT: "Draft",
   SUBMITTED: "Submitted",
@@ -95,6 +152,36 @@ export function formatWorkflowRequestDate(value: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+export function formatWorkflowRequestDateTime(value: string): string {
+  return new Date(value).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function formatWorkflowRequestValue(
+  fieldType: WorkflowFieldType,
+  value: unknown,
+): string {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0 ? "—" : value.map((entry) => String(entry)).join(", ");
+  }
+
+  if (fieldType === "DATE" && typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? value : formatWorkflowRequestDate(value);
+  }
+
+  return String(value);
 }
 
 export function formatRequesterName(

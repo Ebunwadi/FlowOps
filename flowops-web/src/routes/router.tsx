@@ -10,6 +10,7 @@ import { HomePage } from "@/pages/home-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { OrganisationMembersPage } from "@/pages/organisation-members-page";
 import { OrganisationSetupPage } from "@/pages/organisation-setup-page";
+import { RequestDetailPage } from "@/pages/request-detail-page";
 import { RequestsPage } from "@/pages/requests-page";
 import { SubmitRequestPage } from "@/pages/submit-request-page";
 import { SettingsPage } from "@/pages/settings-page";
@@ -68,6 +69,10 @@ export const router = createBrowserRouter([
               {
                 path: "requests/start/:workflowTemplateId",
                 element: <SubmitRequestPage />,
+              },
+              {
+                path: "requests/:id",
+                element: <RequestDetailPage />,
               },
               {
                 path: "settings",
