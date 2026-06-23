@@ -21,6 +21,8 @@ model User {
   createdOrganisations    Organisation[]       @relation("CreatedOrganisations")
   createdWorkflowTemplates WorkflowTemplate[]  @relation("CreatedWorkflowTemplates")
   workflowRequests        WorkflowRequest[]
+  approvals               Approval[]
+  comments                Comment[]
 
   @@map("users")
 }
@@ -136,6 +138,13 @@ enum WorkflowRequestStatus {
   APPROVED
   REJECTED
   CANCELLED
+  CHANGES_REQUESTED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
 }
 
 /// Org-scoped workflow definition with dynamic form fields and approval steps.
@@ -204,6 +213,7 @@ model WorkflowStep {
   workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
   approverRole     Role             @relation(fields: [approverRoleId], references: [id])
   currentRequests  WorkflowRequest[]
+  approvals        Approval[]
 
   @@unique([workflowTemplateId, stepOrder])
   @@index([workflowTemplateId])
@@ -231,6 +241,8 @@ model WorkflowRequest {
   requester        User                    @relation(fields: [requesterId], references: [id])
   currentStep      WorkflowStep?           @relation(fields: [currentStepId], references: [id])
   values           WorkflowRequestValue[]
+  approvals        Approval[]
+  comments         Comment[]
 
   @@index([organisationId])
   @@index([workflowTemplateId])
@@ -256,4 +268,42 @@ model WorkflowRequestValue {
   @@index([workflowRequestId])
   @@index([workflowFieldId])
   @@map("workflow_request_values")
+}
+
+/// An approval decision recorded when an approver acts on a workflow request step.
+model Approval {
+  id                String           @id @default(uuid())
+  workflowRequestId String
+  workflowStepId    String
+  approverId        String
+  decision          ApprovalDecision
+  comment           String?
+  decidedAt         DateTime         @default(now())
+  createdAt         DateTime         @default(now())
+
+  workflowRequest WorkflowRequest @relation(fields: [workflowRequestId], references: [id], onDelete: Cascade)
+  workflowStep    WorkflowStep    @relation(fields: [workflowStepId], references: [id])
+  approver        User            @relation(fields: [approverId], references: [id])
+
+  @@index([workflowRequestId])
+  @@index([workflowStepId])
+  @@index([approverId])
+  @@map("approvals")
+}
+
+/// A comment left on a workflow request by the requester or an involved approver.
+model Comment {
+  id                String   @id @default(uuid())
+  workflowRequestId String
+  authorId          String
+  content           String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workflowRequest WorkflowRequest @relation(fields: [workflowRequestId], references: [id], onDelete: Cascade)
+  author          User            @relation(fields: [authorId], references: [id])
+
+  @@index([workflowRequestId])
+  @@index([authorId])
+  @@map("comments")
 }
