@@ -2,6 +2,7 @@ import {
   APPROVAL_COMMENT_MAX_LENGTH,
   approveWorkflowRequestSchema,
   createWorkflowRequestCommentSchema,
+  listPendingApprovalsQuerySchema,
   rejectWorkflowRequestSchema,
   requestChangesWorkflowRequestSchema,
   workflowRequestApprovalParamsSchema,
@@ -91,6 +92,26 @@ describe("createWorkflowRequestCommentSchema", () => {
       content: "a".repeat(APPROVAL_COMMENT_MAX_LENGTH + 1),
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("listPendingApprovalsQuerySchema", () => {
+  it("defaults pagination values", () => {
+    const result = listPendingApprovalsQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.page).toBe(1);
+      expect(result.data.limit).toBe(20);
+    }
+  });
+
+  it("accepts search and pagination overrides", () => {
+    const result = listPendingApprovalsQuerySchema.safeParse({
+      search: "laptop",
+      page: 2,
+      limit: 10,
+    });
+    expect(result.success).toBe(true);
   });
 });
 

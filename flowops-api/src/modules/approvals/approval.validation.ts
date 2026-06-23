@@ -58,6 +58,12 @@ export const workflowRequestApprovalParamsSchema = z.object({
   id: z.string().uuid(),
 });
 
+export const listPendingApprovalsQuerySchema = z.object({
+  search: z.string().trim().min(1).max(100).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+});
+
 export type ApproveWorkflowRequestBody = z.infer<typeof approveWorkflowRequestSchema>;
 export type RejectWorkflowRequestBody = z.infer<typeof rejectWorkflowRequestSchema>;
 export type RequestChangesWorkflowRequestBody = z.infer<
@@ -69,3 +75,4 @@ export type CreateWorkflowRequestCommentBody = z.infer<
 export type WorkflowRequestApprovalParams = z.infer<
   typeof workflowRequestApprovalParamsSchema
 >;
+export type ListPendingApprovalsQuery = z.infer<typeof listPendingApprovalsQuerySchema>;
