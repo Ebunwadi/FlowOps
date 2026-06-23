@@ -124,3 +124,121 @@ export async function countPendingApprovals(
 export type PendingApprovalRecord = NonNullable<
   Awaited<ReturnType<typeof findPendingApprovals>>[number]
 >;
+
+const requestForApprovalSelect = {
+  id: true,
+  organisationId: true,
+  workflowTemplateId: true,
+  requesterId: true,
+  title: true,
+  status: true,
+  currentStepId: true,
+  currentStep: {
+    select: {
+      id: true,
+      name: true,
+      stepOrder: true,
+      approverRoleId: true,
+    },
+  },
+  workflowTemplate: {
+    select: {
+      id: true,
+      name: true,
+      steps: {
+        orderBy: { stepOrder: "asc" as const },
+        select: {
+          id: true,
+          name: true,
+          stepOrder: true,
+          approverRoleId: true,
+        },
+      },
+    },
+  },
+} as const;
+
+const approvedRequestSelect = {
+  id: true,
+  title: true,
+  status: true,
+  submittedAt: true,
+  currentStep: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} as const;
+
+export async function findWorkflowRequestForApproval(
+  workflowRequestId: string,
+  organisationId: string,
+  db: DbClient = prisma,
+) {
+  return db.workflowRequest.findFirst({
+    where: {
+      id: workflowRequestId,
+      organisationId,
+    },
+    select: requestForApprovalSelect,
+  });
+}
+
+export async function findApprovalDecisionForStep(
+  workflowRequestId: string,
+  workflowStepId: string,
+  db: DbClient = prisma,
+) {
+  return db.approval.findFirst({
+    where: {
+      workflowRequestId,
+      workflowStepId,
+    },
+    select: {
+      id: true,
+      decision: true,
+    },
+  });
+}
+
+export async function createApprovalDecision(
+  input: {
+    workflowRequestId: string;
+    workflowStepId: string;
+    approverId: string;
+    decision: "APPROVED";
+    comment?: string;
+  },
+  db: DbClient,
+) {
+  return db.approval.create({
+    data: {
+      workflowRequestId: input.workflowRequestId,
+      workflowStepId: input.workflowStepId,
+      approverId: input.approverId,
+      decision: input.decision,
+      comment: input.comment,
+    },
+  });
+}
+
+export async function applyWorkflowRequestApproval(
+  input: {
+    workflowRequestId: string;
+    nextStepId: string | null;
+    status: "PENDING_APPROVAL" | "APPROVED";
+    completedAt: Date | null;
+  },
+  db: DbClient,
+) {
+  return db.workflowRequest.update({
+    where: { id: input.workflowRequestId },
+    data: {
+      currentStepId: input.nextStepId,
+      status: input.status,
+      ...(input.completedAt ? { completedAt: input.completedAt } : {}),
+    },
+    select: approvedRequestSelect,
+  });
+}
