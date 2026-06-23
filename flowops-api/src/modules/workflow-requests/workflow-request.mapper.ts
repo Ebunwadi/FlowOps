@@ -3,6 +3,8 @@ import type {
   WorkflowFieldType,
   WorkflowRequestStatus,
 } from "../../generated/prisma/client";
+import type { WorkflowRequestApprovalHistoryItem } from "../approvals/approval.mapper";
+import { toWorkflowRequestApprovalHistoryItem } from "../approvals/approval.mapper";
 
 export interface WorkflowRequestStepSummary {
   id: string;
@@ -136,6 +138,7 @@ export interface WorkflowRequestDetailResponse {
   createdAt: string;
   updatedAt: string;
   attachments: never[];
+  approvalHistory: WorkflowRequestApprovalHistoryItem[];
   history: never[];
 }
 
@@ -177,6 +180,19 @@ interface WorkflowRequestDetailRecord {
       fieldKey: string;
       label: string;
       fieldType: WorkflowFieldType;
+    };
+  }>;
+  approvals: Array<{
+    id: string;
+    decision: WorkflowRequestApprovalHistoryItem["decision"];
+    comment: string | null;
+    decidedAt: Date;
+    workflowStep: { id: string; name: string; stepOrder: number };
+    approver: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
     };
   }>;
 }
@@ -233,6 +249,7 @@ export function toWorkflowRequestDetailResponse(
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString(),
     attachments: [],
+    approvalHistory: request.approvals.map(toWorkflowRequestApprovalHistoryItem),
     history: [],
   };
 }

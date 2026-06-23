@@ -302,6 +302,30 @@ const requestDetailSelect = {
       },
     },
   },
+  approvals: {
+    orderBy: { decidedAt: "asc" as const },
+    select: {
+      id: true,
+      decision: true,
+      comment: true,
+      decidedAt: true,
+      workflowStep: {
+        select: {
+          id: true,
+          name: true,
+          stepOrder: true,
+        },
+      },
+      approver: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  },
 } as const;
 
 export async function findWorkflowRequestDetail(

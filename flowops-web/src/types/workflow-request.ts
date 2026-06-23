@@ -102,6 +102,15 @@ export interface WorkflowRequestApprovalStepDetail {
   isCurrent: boolean;
 }
 
+export interface WorkflowRequestApprovalHistoryItem {
+  id: string;
+  step: { id: string; name: string; stepOrder: number };
+  approver: WorkflowRequestRequesterSummary;
+  decision: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED";
+  comment: string | null;
+  decidedAt: string;
+}
+
 export interface WorkflowRequestDetailResponse {
   id: string;
   organisationId: string;
@@ -118,6 +127,7 @@ export interface WorkflowRequestDetailResponse {
   createdAt: string;
   updatedAt: string;
   attachments: never[];
+  approvalHistory: WorkflowRequestApprovalHistoryItem[];
   history: never[];
 }
 
@@ -144,6 +154,7 @@ const STATUS_LABELS: Record<WorkflowRequestStatus, string> = {
   PENDING_APPROVAL: "Pending approval",
   APPROVED: "Approved",
   REJECTED: "Rejected",
+  CHANGES_REQUESTED: "Changes requested",
   CANCELLED: "Cancelled",
 };
 
