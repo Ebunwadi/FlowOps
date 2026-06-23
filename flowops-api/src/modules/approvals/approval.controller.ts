@@ -7,7 +7,7 @@ import {
 import { sendSuccess } from "../../common/http/apiResponse";
 import { asyncHandler } from "../../common/middleware/asyncHandler";
 import * as approvalService from "./approval.service";
-import type { ListPendingApprovalsQuery } from "./approval.validation";
+import type { ApproveWorkflowRequestBody, ListPendingApprovalsQuery } from "./approval.validation";
 
 function requireLocalUser(req: Request) {
   if (!req.localUser) {
@@ -52,6 +52,30 @@ export const listPendingApprovalsController = asyncHandler(
     sendSuccess(res, {
       data,
       message: "Pending approvals retrieved successfully",
+    });
+  },
+);
+
+export const approveWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const membership = requireMembership(req);
+
+    const data = await approvalService.approveWorkflowRequest(
+      organisation.id,
+      {
+        userId: localUser.id,
+        roleId: membership.roleId,
+        roleName: membership.role.name,
+      },
+      req.params.id,
+      req.body as ApproveWorkflowRequestBody,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow request approved successfully",
     });
   },
 );
