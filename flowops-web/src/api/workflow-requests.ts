@@ -1,10 +1,55 @@
 import { apiClient } from "@/api/client";
 import type {
   DraftWorkflowRequestResponse,
+  PaginatedWorkflowRequestsResponse,
   SaveDraftWorkflowRequestBody,
   SubmittedWorkflowRequestResponse,
   SubmitWorkflowRequestBody,
+  WorkflowRequestStatus,
 } from "@/types/workflow-request";
+
+export interface ListWorkflowRequestsParams {
+  status?: WorkflowRequestStatus;
+  workflowTemplateId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+function buildQueryString(params: ListWorkflowRequestsParams): string {
+  const searchParams = new URLSearchParams();
+
+  if (params.status) {
+    searchParams.set("status", params.status);
+  }
+
+  if (params.workflowTemplateId) {
+    searchParams.set("workflowTemplateId", params.workflowTemplateId);
+  }
+
+  if (params.search) {
+    searchParams.set("search", params.search);
+  }
+
+  if (params.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+
+  if (params.limit !== undefined) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+}
+
+export function listMyWorkflowRequests(
+  params: ListWorkflowRequestsParams = {},
+): Promise<PaginatedWorkflowRequestsResponse> {
+  return apiClient<PaginatedWorkflowRequestsResponse>(
+    `/workflow-requests/my${buildQueryString(params)}`,
+  );
+}
 
 export function submitWorkflowRequest(
   body: SubmitWorkflowRequestBody,
