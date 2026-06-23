@@ -164,6 +164,7 @@ describe("workflow request service", () => {
           },
         },
       ],
+      approvals: [],
     };
 
     beforeEach(() => {
@@ -191,6 +192,58 @@ describe("workflow request service", () => {
         },
       ]);
       expect(roleRepository.findPermissionKeysByRoleId).not.toHaveBeenCalled();
+    });
+
+    it("includes approval history ordered by decision date", async () => {
+      const decidedAt = new Date("2026-06-20T14:00:00.000Z");
+      jest.mocked(workflowRequestRepository.findWorkflowRequestDetail).mockResolvedValue({
+        ...detailRecord,
+        approvals: [
+          {
+            id: "bbbb8888-8888-4888-8888-888888888888",
+            decision: "APPROVED",
+            comment: "Looks good.",
+            decidedAt,
+            workflowStep: {
+              id: stepId,
+              name: "Manager Approval",
+              stepOrder: 1,
+            },
+            approver: {
+              id: otherUserId,
+              firstName: "Grace",
+              lastName: "Hopper",
+              email: "grace@example.com",
+            },
+          },
+        ],
+      });
+
+      const result = await getWorkflowRequestDetail(
+        organisationId,
+        { userId: requesterId, roleId: staffRoleId },
+        requestId,
+      );
+
+      expect(result.approvalHistory).toEqual([
+        {
+          id: "bbbb8888-8888-4888-8888-888888888888",
+          step: {
+            id: stepId,
+            name: "Manager Approval",
+            stepOrder: 1,
+          },
+          approver: {
+            id: otherUserId,
+            firstName: "Grace",
+            lastName: "Hopper",
+            email: "grace@example.com",
+          },
+          decision: "APPROVED",
+          comment: "Looks good.",
+          decidedAt: decidedAt.toISOString(),
+        },
+      ]);
     });
 
     it("lets an approver assigned to the current step role view the request", async () => {

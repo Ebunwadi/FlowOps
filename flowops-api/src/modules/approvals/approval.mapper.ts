@@ -1,4 +1,7 @@
-import type { WorkflowRequestStatus } from "../../generated/prisma/client";
+import type {
+  ApprovalDecision,
+  WorkflowRequestStatus,
+} from "../../generated/prisma/client";
 import type { PendingApprovalRecord } from "./approval.repository";
 
 export interface PendingApprovalRequesterSummary {
@@ -70,5 +73,41 @@ export function toPendingApprovalListItem(
     },
     submittedAt: request.submittedAt ? request.submittedAt.toISOString() : null,
     dueAt: computeDueAt(request.submittedAt, request.currentStep.slaHours),
+  };
+}
+
+export interface WorkflowRequestApprovalHistoryItem {
+  id: string;
+  step: { id: string; name: string; stepOrder: number };
+  approver: PendingApprovalRequesterSummary;
+  decision: ApprovalDecision;
+  comment: string | null;
+  decidedAt: string;
+}
+
+export function toWorkflowRequestApprovalHistoryItem(approval: {
+  id: string;
+  decision: ApprovalDecision;
+  comment: string | null;
+  decidedAt: Date;
+  workflowStep: { id: string; name: string; stepOrder: number };
+  approver: PendingApprovalRequesterSummary;
+}): WorkflowRequestApprovalHistoryItem {
+  return {
+    id: approval.id,
+    step: {
+      id: approval.workflowStep.id,
+      name: approval.workflowStep.name,
+      stepOrder: approval.workflowStep.stepOrder,
+    },
+    approver: {
+      id: approval.approver.id,
+      firstName: approval.approver.firstName,
+      lastName: approval.approver.lastName,
+      email: approval.approver.email,
+    },
+    decision: approval.decision,
+    comment: approval.comment,
+    decidedAt: approval.decidedAt.toISOString(),
   };
 }
