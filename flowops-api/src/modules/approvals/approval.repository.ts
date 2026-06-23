@@ -1,3 +1,4 @@
+import type { ApprovalDecision } from "../../generated/prisma/client";
 import type { DbClient } from "../../common/types/database";
 import { prisma } from "../../config/database";
 
@@ -207,7 +208,7 @@ export async function createApprovalDecision(
     workflowRequestId: string;
     workflowStepId: string;
     approverId: string;
-    decision: "APPROVED";
+    decision: ApprovalDecision;
     comment?: string;
   },
   db: DbClient,
@@ -238,6 +239,20 @@ export async function applyWorkflowRequestApproval(
       currentStepId: input.nextStepId,
       status: input.status,
       ...(input.completedAt ? { completedAt: input.completedAt } : {}),
+    },
+    select: approvedRequestSelect,
+  });
+}
+
+export async function applyWorkflowRequestRejection(
+  workflowRequestId: string,
+  db: DbClient,
+) {
+  return db.workflowRequest.update({
+    where: { id: workflowRequestId },
+    data: {
+      status: "REJECTED",
+      currentStepId: null,
     },
     select: approvedRequestSelect,
   });

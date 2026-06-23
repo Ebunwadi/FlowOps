@@ -16,6 +16,10 @@ interface RequesterNotificationInput {
   requesterId: string;
 }
 
+interface RequesterRejectionNotificationInput extends RequesterNotificationInput {
+  comment: string;
+}
+
 /** Placeholder until the notifications module is built in a later sprint. */
 export function notifyApproversOfNextStep(input: ApprovalNotificationInput): void {
   logger.info(
@@ -46,5 +50,22 @@ export function notifyRequesterOfCompletedRequest(
       requesterId: input.requesterId,
     },
     "[API] Notification placeholder: requester should be notified that the request is completed",
+  );
+}
+
+/** Placeholder until the notifications module is built in a later sprint. */
+export function notifyRequesterOfRejectedRequest(
+  input: RequesterRejectionNotificationInput,
+): void {
+  logger.info(
+    {
+      origin: "api",
+      event: "approval.notification.rejected.placeholder",
+      organisationId: input.organisationId,
+      workflowRequestId: input.workflowRequestId,
+      workflowTemplateId: input.workflowTemplateId,
+      requesterId: input.requesterId,
+    },
+    "[API] Notification placeholder: requester should be notified that the request was rejected",
   );
 }

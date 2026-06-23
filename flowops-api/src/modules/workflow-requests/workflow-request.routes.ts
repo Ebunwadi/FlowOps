@@ -15,9 +15,10 @@ import {
   submitWorkflowRequestController,
   updateDraftWorkflowRequestController,
 } from "./workflow-request.controller";
-import { approveWorkflowRequestController } from "../approvals/approval.controller";
+import { approveWorkflowRequestController, rejectWorkflowRequestController } from "../approvals/approval.controller";
 import {
   approveWorkflowRequestSchema,
+  rejectWorkflowRequestSchema,
   workflowRequestApprovalParamsSchema,
 } from "../approvals/approval.validation";
 import {
@@ -100,6 +101,17 @@ workflowRequestRouter.post(
     body: approveWorkflowRequestSchema,
   }),
   approveWorkflowRequestController,
+);
+
+workflowRequestRouter.post(
+  "/:id/reject",
+  ensureOrganisationContext,
+  requirePermission("approvals:reject"),
+  validateRequest({
+    params: workflowRequestApprovalParamsSchema,
+    body: rejectWorkflowRequestSchema,
+  }),
+  rejectWorkflowRequestController,
 );
 
 // Access control (requester / view-all / assigned approver) is enforced in the service.

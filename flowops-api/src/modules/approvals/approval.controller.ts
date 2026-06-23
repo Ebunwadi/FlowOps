@@ -7,7 +7,11 @@ import {
 import { sendSuccess } from "../../common/http/apiResponse";
 import { asyncHandler } from "../../common/middleware/asyncHandler";
 import * as approvalService from "./approval.service";
-import type { ApproveWorkflowRequestBody, ListPendingApprovalsQuery } from "./approval.validation";
+import type {
+  ApproveWorkflowRequestBody,
+  ListPendingApprovalsQuery,
+  RejectWorkflowRequestBody,
+} from "./approval.validation";
 
 function requireLocalUser(req: Request) {
   if (!req.localUser) {
@@ -76,6 +80,30 @@ export const approveWorkflowRequestController = asyncHandler(
     sendSuccess(res, {
       data,
       message: "Workflow request approved successfully",
+    });
+  },
+);
+
+export const rejectWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const membership = requireMembership(req);
+
+    const data = await approvalService.rejectWorkflowRequest(
+      organisation.id,
+      {
+        userId: localUser.id,
+        roleId: membership.roleId,
+        roleName: membership.role.name,
+      },
+      req.params.id,
+      req.body as RejectWorkflowRequestBody,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Workflow request rejected successfully",
     });
   },
 );

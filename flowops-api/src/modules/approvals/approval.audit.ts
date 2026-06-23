@@ -4,6 +4,7 @@ import { WORKFLOW_REQUEST_ENTITY_TYPE } from "../workflow-requests/workflow-requ
 export const APPROVAL_AUDIT_ACTIONS = {
   STEP_APPROVED: "WORKFLOW_REQUEST_STEP_APPROVED",
   COMPLETED: "WORKFLOW_REQUEST_COMPLETED",
+  REJECTED: "WORKFLOW_REQUEST_REJECTED",
 } as const;
 
 interface RecordApprovalAuditEventInput {

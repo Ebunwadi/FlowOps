@@ -18,9 +18,11 @@ import {
 import {
   notifyApproversOfNextStep,
   notifyRequesterOfCompletedRequest,
+  notifyRequesterOfRejectedRequest,
 } from "./approval.notifications";
 import {
   applyWorkflowRequestApproval,
+  applyWorkflowRequestRejection,
   countPendingApprovals,
   createApprovalDecision,
   findApprovalDecisionForStep,
@@ -34,6 +36,7 @@ import {
 import type {
   ApproveWorkflowRequestBody,
   ListPendingApprovalsQuery,
+  RejectWorkflowRequestBody,
 } from "./approval.validation";
 
 export { isOrganisationOwnerRole } from "./approval.helpers";
@@ -47,6 +50,54 @@ export interface ApprovalActor {
   userId: string;
   roleId: string;
   roleName: string;
+}
+
+type WorkflowRequestForApproval = NonNullable<
+  Awaited<ReturnType<typeof findWorkflowRequestForApproval>>
+>;
+
+async function loadApprovalDecisionContext(
+  organisationId: string,
+  actor: ApprovalActor,
+  workflowRequestId: string,
+  pendingActionMessage: string,
+): Promise<{
+  request: WorkflowRequestForApproval;
+  currentStep: NonNullable<WorkflowRequestForApproval["currentStep"]>;
+}> {
+  const request = await findWorkflowRequestForApproval(
+    workflowRequestId,
+    organisationId,
+  );
+
+  if (!request) {
+    throw new NotFoundError("Workflow request not found");
+  }
+
+  if (request.status !== "PENDING_APPROVAL") {
+    throw new ConflictError(pendingActionMessage);
+  }
+
+  if (!request.currentStep) {
+    throw new ConflictError("This request has no current approval step");
+  }
+
+  const existingDecision = await findApprovalDecisionForStep(
+    request.id,
+    request.currentStep.id,
+  );
+
+  if (existingDecision) {
+    throw new ConflictError("This approval step has already been decided");
+  }
+
+  if (!canActAsCurrentApprover(actor, request.currentStep.approverRoleId)) {
+    throw new AuthorizationError(
+      "You are not assigned to act on the current step of this request",
+    );
+  }
+
+  return { request, currentStep: request.currentStep };
 }
 
 export async function listPendingApprovals(
@@ -85,41 +136,13 @@ export async function approveWorkflowRequest(
   workflowRequestId: string,
   input: ApproveWorkflowRequestBody,
 ): Promise<SubmittedWorkflowRequestResponse> {
-  const request = await findWorkflowRequestForApproval(
-    workflowRequestId,
+  const { request, currentStep } = await loadApprovalDecisionContext(
     organisationId,
+    actor,
+    workflowRequestId,
+    "Only pending approval requests can be approved",
   );
 
-  if (!request) {
-    throw new NotFoundError("Workflow request not found");
-  }
-
-  if (request.status !== "PENDING_APPROVAL") {
-    throw new ConflictError("Only pending approval requests can be approved");
-  }
-
-  if (!request.currentStep) {
-    throw new ConflictError("This request has no current approval step");
-  }
-
-  const existingDecision = await findApprovalDecisionForStep(
-    request.id,
-    request.currentStep.id,
-  );
-
-  if (existingDecision) {
-    throw new ConflictError("This approval step has already been decided");
-  }
-
-  if (
-    !canActAsCurrentApprover(actor, request.currentStep.approverRoleId)
-  ) {
-    throw new AuthorizationError(
-      "You are not assigned to approve the current step of this request",
-    );
-  }
-
-  const currentStep = request.currentStep;
   const nextStep = getNextWorkflowStep(request.workflowTemplate.steps, currentStep.id);
   const completedAt = nextStep ? null : new Date();
 
@@ -197,6 +220,73 @@ export async function approveWorkflowRequest(
       requesterId: request.requesterId,
     });
   }
+
+  return toSubmittedWorkflowRequestResponse(updatedRequest);
+}
+
+export async function rejectWorkflowRequest(
+  organisationId: string,
+  actor: ApprovalActor,
+  workflowRequestId: string,
+  input: RejectWorkflowRequestBody,
+): Promise<SubmittedWorkflowRequestResponse> {
+  const { request, currentStep } = await loadApprovalDecisionContext(
+    organisationId,
+    actor,
+    workflowRequestId,
+    "Only pending approval requests can be rejected",
+  );
+
+  const updatedRequest = await prisma.$transaction(async (tx) => {
+    await createApprovalDecision(
+      {
+        workflowRequestId: request.id,
+        workflowStepId: currentStep.id,
+        approverId: actor.userId,
+        decision: "REJECTED",
+        comment: input.comment,
+      },
+      tx,
+    );
+
+    return applyWorkflowRequestRejection(request.id, tx);
+  });
+
+  logger.info(
+    {
+      origin: "api",
+      event: "workflow_request.rejected",
+      organisationId,
+      workflowRequestId: request.id,
+      workflowTemplateId: request.workflowTemplateId,
+      approverId: actor.userId,
+      rejectedStepId: currentStep.id,
+    },
+    `[API] Workflow request "${request.title ?? request.id}" rejected`,
+  );
+
+  recordApprovalAuditEvent({
+    action: APPROVAL_AUDIT_ACTIONS.REJECTED,
+    organisationId,
+    actorUserId: actor.userId,
+    workflowRequestId: request.id,
+    metadata: {
+      workflowTemplateId: request.workflowTemplateId,
+      templateName: request.workflowTemplate.name,
+      status: updatedRequest.status,
+      rejectedStepId: currentStep.id,
+      rejectedStepName: currentStep.name,
+      comment: input.comment,
+    },
+  });
+
+  notifyRequesterOfRejectedRequest({
+    organisationId,
+    workflowRequestId: request.id,
+    workflowTemplateId: request.workflowTemplateId,
+    requesterId: request.requesterId,
+    comment: input.comment,
+  });
 
   return toSubmittedWorkflowRequestResponse(updatedRequest);
 }
