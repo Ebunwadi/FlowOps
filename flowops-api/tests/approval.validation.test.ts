@@ -46,6 +46,13 @@ describe("rejectWorkflowRequestSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("rejects a comment that exceeds the maximum length", () => {
+    const result = rejectWorkflowRequestSchema.safeParse({
+      comment: "a".repeat(APPROVAL_COMMENT_MAX_LENGTH + 1),
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("requestChangesWorkflowRequestSchema", () => {
@@ -53,11 +60,37 @@ describe("requestChangesWorkflowRequestSchema", () => {
     const result = requestChangesWorkflowRequestSchema.safeParse({});
     expect(result.success).toBe(false);
   });
+
+  it("accepts a valid request-changes comment", () => {
+    const result = requestChangesWorkflowRequestSchema.safeParse({
+      comment: "Please provide a clearer business justification.",
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("createWorkflowRequestCommentSchema", () => {
   it("requires content", () => {
     const result = createWorkflowRequestCommentSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects blank content", () => {
+    const result = createWorkflowRequestCommentSchema.safeParse({ content: "  " });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts valid comment content", () => {
+    const result = createWorkflowRequestCommentSchema.safeParse({
+      content: "Can you clarify the budget code?",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects content that exceeds the maximum length", () => {
+    const result = createWorkflowRequestCommentSchema.safeParse({
+      content: "a".repeat(APPROVAL_COMMENT_MAX_LENGTH + 1),
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -88,5 +121,10 @@ describe("workflowRequestApprovalParamsSchema", () => {
       id: "11111111-1111-4111-8111-111111111111",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects a non-uuid id", () => {
+    const result = workflowRequestApprovalParamsSchema.safeParse({ id: "not-a-uuid" });
+    expect(result.success).toBe(false);
   });
 });
