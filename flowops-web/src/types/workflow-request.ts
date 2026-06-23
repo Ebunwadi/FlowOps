@@ -28,6 +28,11 @@ export interface SaveDraftWorkflowRequestBody {
   values: SubmittedRequestValueInput[];
 }
 
+export interface UpdateDraftWorkflowRequestBody {
+  title?: string;
+  values?: SubmittedRequestValueInput[];
+}
+
 export interface WorkflowRequestStepSummary {
   id: string;
   name: string;
