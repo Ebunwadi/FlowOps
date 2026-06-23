@@ -9,6 +9,7 @@ export const WORKFLOW_REQUEST_STATUSES = [
   "APPROVED",
   "REJECTED",
   "CANCELLED",
+  "CHANGES_REQUESTED",
 ] as const;
 
 /**
