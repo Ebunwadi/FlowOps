@@ -14,7 +14,9 @@ import type {
   WorkflowTemplateField,
 } from "@/types/workflow-template";
 
-type FieldValue = string | string[];
+export type RequestFieldValue = string | string[];
+
+type FieldValue = RequestFieldValue;
 
 export interface DynamicRequestFormSubmission {
   title: string | undefined;
@@ -26,6 +28,8 @@ interface DynamicRequestFormProps {
   serverFieldErrors: Record<string, string>;
   isSubmitting: boolean;
   isSavingDraft: boolean;
+  initialValues?: Record<string, FieldValue>;
+  initialTitle?: string;
   onSubmit: (submission: DynamicRequestFormSubmission) => void;
   onSaveDraft: (submission: DynamicRequestFormSubmission) => void;
   onCancel: () => void;
@@ -40,9 +44,15 @@ function parseOptions(options: unknown): string[] {
 
 function buildInitialValues(
   fields: WorkflowTemplateField[],
+  provided?: Record<string, FieldValue>,
 ): Record<string, FieldValue> {
   const initial: Record<string, FieldValue> = {};
   for (const field of fields) {
+    const supplied = provided?.[field.id];
+    if (supplied !== undefined) {
+      initial[field.id] = supplied;
+      continue;
+    }
     initial[field.id] = field.fieldType === "CHECKBOX" ? [] : "";
   }
   return initial;
@@ -95,6 +105,8 @@ export function DynamicRequestForm({
   serverFieldErrors,
   isSubmitting,
   isSavingDraft,
+  initialValues,
+  initialTitle,
   onSubmit,
   onSaveDraft,
   onCancel,
@@ -104,9 +116,9 @@ export function DynamicRequestForm({
     [template.fields],
   );
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle ?? "");
   const [values, setValues] = useState<Record<string, FieldValue>>(() =>
-    buildInitialValues(fields),
+    buildInitialValues(fields, initialValues),
   );
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
 

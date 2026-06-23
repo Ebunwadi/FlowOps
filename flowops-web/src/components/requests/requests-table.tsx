@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { listMyWorkflowRequests } from "@/api/workflow-requests";
+import {
+  listMyWorkflowRequests,
+  listOrganisationWorkflowRequests,
+} from "@/api/workflow-requests";
 import { Button } from "@/components/ui/button";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { Input } from "@/components/ui/input";
@@ -10,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { formatApiErrorMessage } from "@/lib/api-errors";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import {
+  formatRequesterName,
   formatWorkflowRequestDate,
   formatWorkflowRequestStatus,
   WORKFLOW_REQUEST_STATUSES,
@@ -21,7 +25,13 @@ import { WorkflowRequestStatusBadge } from "./workflow-request-status-badge";
 
 const PAGE_SIZE = 20;
 
-export function MyRequestsTable() {
+export type RequestsScope = "mine" | "all";
+
+interface RequestsTableProps {
+  scope: RequestsScope;
+}
+
+export function RequestsTable({ scope }: RequestsTableProps) {
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | WorkflowRequestStatus>("");
   const [page, setPage] = useState(1);
@@ -29,15 +39,26 @@ export function MyRequestsTable() {
   const debouncedSearch = useDebouncedValue(searchInput.trim());
 
   const requestsQuery = useQuery({
-    queryKey: ["my-workflow-requests", debouncedSearch, statusFilter, page],
-    queryFn: () =>
-      listMyWorkflowRequests({
+    queryKey: [
+      scope === "mine" ? "my-workflow-requests" : "organisation-workflow-requests",
+      debouncedSearch,
+      statusFilter,
+      page,
+    ],
+    queryFn: () => {
+      const params = {
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         page,
         limit: PAGE_SIZE,
-      }),
+      };
+      return scope === "mine"
+        ? listMyWorkflowRequests(params)
+        : listOrganisationWorkflowRequests(params);
+    },
   });
+
+  const showRequester = scope === "all";
 
   if (requestsQuery.isLoading) {
     return (
@@ -69,7 +90,7 @@ export function MyRequestsTable() {
           variant="error"
         >
           <h3 className="text-sm font-medium text-red-900">
-            Unable to load your requests
+            Unable to load requests
           </h3>
           <p className="mt-1 text-sm text-red-700">
             {formatApiErrorMessage(requestsQuery.error)}
@@ -115,7 +136,7 @@ export function MyRequestsTable() {
       />
 
       {items.length === 0 ? (
-        <RequestsEmptyState hasActiveFilters={hasActiveFilters} />
+        <RequestsEmptyState hasActiveFilters={hasActiveFilters} scope={scope} />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
@@ -129,6 +150,11 @@ export function MyRequestsTable() {
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                       Workflow
                     </th>
+                    {showRequester ? (
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                        Requester
+                      </th>
+                    ) : null}
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">
                       Status
                     </th>
@@ -145,7 +171,11 @@ export function MyRequestsTable() {
                 </thead>
                 <tbody className="divide-y">
                   {items.map((request) => (
-                    <RequestRow key={request.id} request={request} />
+                    <RequestRow
+                      key={request.id}
+                      request={request}
+                      showRequester={showRequester}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -252,7 +282,13 @@ function RequestsFilters({
   );
 }
 
-function RequestRow({ request }: { request: WorkflowRequestListItem }) {
+function RequestRow({
+  request,
+  showRequester,
+}: {
+  request: WorkflowRequestListItem;
+  showRequester: boolean;
+}) {
   return (
     <tr className="transition-colors hover:bg-muted/20">
       <td className="px-4 py-3">
@@ -266,6 +302,11 @@ function RequestRow({ request }: { request: WorkflowRequestListItem }) {
       <td className="px-4 py-3 text-muted-foreground">
         {request.workflowTemplate.name}
       </td>
+      {showRequester ? (
+        <td className="px-4 py-3 text-muted-foreground">
+          {formatRequesterName(request.requester)}
+        </td>
+      ) : null}
       <td className="px-4 py-3">
         <WorkflowRequestStatusBadge status={request.status} />
       </td>
@@ -286,7 +327,13 @@ function RequestRow({ request }: { request: WorkflowRequestListItem }) {
   );
 }
 
-function RequestsEmptyState({ hasActiveFilters }: { hasActiveFilters: boolean }) {
+function RequestsEmptyState({
+  hasActiveFilters,
+  scope,
+}: {
+  hasActiveFilters: boolean;
+  scope: RequestsScope;
+}) {
   return (
     <div className="rounded-lg border border-dashed bg-card px-6 py-16 text-center shadow-sm">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -300,13 +347,15 @@ function RequestsEmptyState({ hasActiveFilters }: { hasActiveFilters: boolean })
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
         {hasActiveFilters
           ? "Try adjusting your search or status filter to find what you are looking for."
-          : "You have not started any requests yet. Start one from an available workflow."}
+          : scope === "mine"
+            ? "You have not started any requests yet. Start one from an available workflow."
+            : "No requests have been submitted in this organisation yet."}
       </p>
-      {hasActiveFilters ? null : (
+      {!hasActiveFilters && scope === "mine" ? (
         <Button asChild className="mt-4" type="button">
           <Link to="/requests/start">Start a request</Link>
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import type {
   SaveDraftWorkflowRequestBody,
   SubmittedWorkflowRequestResponse,
   SubmitWorkflowRequestBody,
+  UpdateDraftWorkflowRequestBody,
   WorkflowRequestDetailResponse,
   WorkflowRequestStatus,
 } from "@/types/workflow-request";
@@ -53,6 +54,14 @@ export function listMyWorkflowRequests(
   );
 }
 
+export function listOrganisationWorkflowRequests(
+  params: ListWorkflowRequestsParams = {},
+): Promise<PaginatedWorkflowRequestsResponse> {
+  return apiClient<PaginatedWorkflowRequestsResponse>(
+    `/workflow-requests${buildQueryString(params)}`,
+  );
+}
+
 export function getWorkflowRequestById(
   workflowRequestId: string,
 ): Promise<WorkflowRequestDetailResponse> {
@@ -66,6 +75,25 @@ export function cancelWorkflowRequest(
 ): Promise<CancelledWorkflowRequestResponse> {
   return apiClient<CancelledWorkflowRequestResponse>(
     `/workflow-requests/${workflowRequestId}/cancel`,
+    { method: "POST" },
+  );
+}
+
+export function updateDraftWorkflowRequest(
+  workflowRequestId: string,
+  body: UpdateDraftWorkflowRequestBody,
+): Promise<DraftWorkflowRequestResponse> {
+  return apiClient<DraftWorkflowRequestResponse>(
+    `/workflow-requests/${workflowRequestId}/draft`,
+    { method: "PATCH", body },
+  );
+}
+
+export function submitDraftWorkflowRequest(
+  workflowRequestId: string,
+): Promise<SubmittedWorkflowRequestResponse> {
+  return apiClient<SubmittedWorkflowRequestResponse>(
+    `/workflow-requests/${workflowRequestId}/submit`,
     { method: "POST" },
   );
 }

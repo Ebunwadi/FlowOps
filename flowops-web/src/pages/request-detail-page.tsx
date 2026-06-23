@@ -105,6 +105,8 @@ export function RequestDetailPage() {
   }
 
   const isOwner = profile?.id === request.requester.id;
+  const canEditDraft =
+    isOwner && request.status === "DRAFT" && hasPermission("requests:create");
   const canCancel =
     isOwner &&
     hasPermission("requests:cancel") &&
@@ -162,6 +164,11 @@ export function RequestDetailPage() {
           <Button asChild type="button" variant="outline">
             <Link to="/requests">Back to list</Link>
           </Button>
+          {canEditDraft ? (
+            <Button asChild type="button">
+              <Link to={`/requests/${request.id}/edit`}>Edit draft</Link>
+            </Button>
+          ) : null}
           {canCancel ? (
             <Button
               disabled={cancelMutation.isPending}
