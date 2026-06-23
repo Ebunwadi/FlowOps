@@ -17,11 +17,13 @@ import {
 } from "./approval.helpers";
 import {
   notifyApproversOfNextStep,
+  notifyRequesterOfChangesRequested,
   notifyRequesterOfCompletedRequest,
   notifyRequesterOfRejectedRequest,
 } from "./approval.notifications";
 import {
   applyWorkflowRequestApproval,
+  applyWorkflowRequestChangesRequested,
   applyWorkflowRequestRejection,
   countPendingApprovals,
   createApprovalDecision,
@@ -37,6 +39,7 @@ import type {
   ApproveWorkflowRequestBody,
   ListPendingApprovalsQuery,
   RejectWorkflowRequestBody,
+  RequestChangesWorkflowRequestBody,
 } from "./approval.validation";
 
 export { isOrganisationOwnerRole } from "./approval.helpers";
@@ -281,6 +284,73 @@ export async function rejectWorkflowRequest(
   });
 
   notifyRequesterOfRejectedRequest({
+    organisationId,
+    workflowRequestId: request.id,
+    workflowTemplateId: request.workflowTemplateId,
+    requesterId: request.requesterId,
+    comment: input.comment,
+  });
+
+  return toSubmittedWorkflowRequestResponse(updatedRequest);
+}
+
+export async function requestChangesWorkflowRequest(
+  organisationId: string,
+  actor: ApprovalActor,
+  workflowRequestId: string,
+  input: RequestChangesWorkflowRequestBody,
+): Promise<SubmittedWorkflowRequestResponse> {
+  const { request, currentStep } = await loadApprovalDecisionContext(
+    organisationId,
+    actor,
+    workflowRequestId,
+    "Only pending approval requests can have changes requested",
+  );
+
+  const updatedRequest = await prisma.$transaction(async (tx) => {
+    await createApprovalDecision(
+      {
+        workflowRequestId: request.id,
+        workflowStepId: currentStep.id,
+        approverId: actor.userId,
+        decision: "CHANGES_REQUESTED",
+        comment: input.comment,
+      },
+      tx,
+    );
+
+    return applyWorkflowRequestChangesRequested(request.id, tx);
+  });
+
+  logger.info(
+    {
+      origin: "api",
+      event: "workflow_request.changes_requested",
+      organisationId,
+      workflowRequestId: request.id,
+      workflowTemplateId: request.workflowTemplateId,
+      approverId: actor.userId,
+      stepId: currentStep.id,
+    },
+    `[API] Workflow request "${request.title ?? request.id}" changes requested`,
+  );
+
+  recordApprovalAuditEvent({
+    action: APPROVAL_AUDIT_ACTIONS.CHANGES_REQUESTED,
+    organisationId,
+    actorUserId: actor.userId,
+    workflowRequestId: request.id,
+    metadata: {
+      workflowTemplateId: request.workflowTemplateId,
+      templateName: request.workflowTemplate.name,
+      status: updatedRequest.status,
+      stepId: currentStep.id,
+      stepName: currentStep.name,
+      comment: input.comment,
+    },
+  });
+
+  notifyRequesterOfChangesRequested({
     organisationId,
     workflowRequestId: request.id,
     workflowTemplateId: request.workflowTemplateId,
