@@ -1,10 +1,12 @@
 import { apiClient } from "@/api/client";
 import type {
+  CancelledWorkflowRequestResponse,
   DraftWorkflowRequestResponse,
   PaginatedWorkflowRequestsResponse,
   SaveDraftWorkflowRequestBody,
   SubmittedWorkflowRequestResponse,
   SubmitWorkflowRequestBody,
+  WorkflowRequestDetailResponse,
   WorkflowRequestStatus,
 } from "@/types/workflow-request";
 
@@ -48,6 +50,23 @@ export function listMyWorkflowRequests(
 ): Promise<PaginatedWorkflowRequestsResponse> {
   return apiClient<PaginatedWorkflowRequestsResponse>(
     `/workflow-requests/my${buildQueryString(params)}`,
+  );
+}
+
+export function getWorkflowRequestById(
+  workflowRequestId: string,
+): Promise<WorkflowRequestDetailResponse> {
+  return apiClient<WorkflowRequestDetailResponse>(
+    `/workflow-requests/${workflowRequestId}`,
+  );
+}
+
+export function cancelWorkflowRequest(
+  workflowRequestId: string,
+): Promise<CancelledWorkflowRequestResponse> {
+  return apiClient<CancelledWorkflowRequestResponse>(
+    `/workflow-requests/${workflowRequestId}/cancel`,
+    { method: "POST" },
   );
 }
 
