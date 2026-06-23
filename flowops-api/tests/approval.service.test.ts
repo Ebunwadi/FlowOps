@@ -7,6 +7,7 @@ import { prisma } from "../src/config/database";
 import { recordApprovalAuditEvent } from "../src/modules/approvals/approval.audit";
 import {
   notifyApproversOfNextStep,
+  notifyRequesterOfChangesRequested,
   notifyRequesterOfCompletedRequest,
   notifyRequesterOfRejectedRequest,
 } from "../src/modules/approvals/approval.notifications";
@@ -16,6 +17,7 @@ import {
   isOrganisationOwnerRole,
   listPendingApprovals,
   rejectWorkflowRequest,
+  requestChangesWorkflowRequest,
 } from "../src/modules/approvals/approval.service";
 import { DEFAULT_ROLE_NAMES } from "../src/modules/roles/default-roles";
 
@@ -26,12 +28,14 @@ jest.mock("../src/modules/approvals/approval.audit", () => ({
     STEP_APPROVED: "WORKFLOW_REQUEST_STEP_APPROVED",
     COMPLETED: "WORKFLOW_REQUEST_COMPLETED",
     REJECTED: "WORKFLOW_REQUEST_REJECTED",
+    CHANGES_REQUESTED: "WORKFLOW_REQUEST_CHANGES_REQUESTED",
   },
 }));
 jest.mock("../src/modules/approvals/approval.notifications", () => ({
   notifyApproversOfNextStep: jest.fn(),
   notifyRequesterOfCompletedRequest: jest.fn(),
   notifyRequesterOfRejectedRequest: jest.fn(),
+  notifyRequesterOfChangesRequested: jest.fn(),
 }));
 jest.mock("../src/config/database", () => ({
   prisma: {
@@ -464,6 +468,110 @@ describe("approval service", () => {
 
       await expect(
         rejectWorkflowRequest(
+          organisationId,
+          {
+            userId: approverUserId,
+            roleId: otherRoleId,
+            roleName: DEFAULT_ROLE_NAMES.STAFF,
+          },
+          requestId,
+          { comment: "Not allowed." },
+        ),
+      ).rejects.toBeInstanceOf(AuthorizationError);
+    });
+  });
+
+  describe("requestChangesWorkflowRequest", () => {
+    it("requests changes and clears the current step", async () => {
+      jest
+        .mocked(approvalRepository.findWorkflowRequestForApproval)
+        .mockResolvedValue(requestForApproval);
+      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
+      jest
+        .mocked(approvalRepository.applyWorkflowRequestChangesRequested)
+        .mockResolvedValue({
+          id: requestId,
+          title: "New laptop request",
+          status: "CHANGES_REQUESTED",
+          submittedAt,
+          currentStep: null,
+        });
+
+      const result = await requestChangesWorkflowRequest(
+        organisationId,
+        {
+          userId: approverUserId,
+          roleId: approverRoleId,
+          roleName: DEFAULT_ROLE_NAMES.MANAGER,
+        },
+        requestId,
+        { comment: "Please add a cost breakdown." },
+      );
+
+      expect(approvalRepository.createApprovalDecision).toHaveBeenCalledWith(
+        {
+          workflowRequestId: requestId,
+          workflowStepId: stepOneId,
+          approverId: approverUserId,
+          decision: "CHANGES_REQUESTED",
+          comment: "Please add a cost breakdown.",
+        },
+        prisma,
+      );
+      expect(approvalRepository.applyWorkflowRequestChangesRequested).toHaveBeenCalledWith(
+        requestId,
+        prisma,
+      );
+      expect(notifyRequesterOfChangesRequested).toHaveBeenCalledWith({
+        organisationId,
+        workflowRequestId: requestId,
+        workflowTemplateId: templateId,
+        requesterId,
+        comment: "Please add a cost breakdown.",
+      });
+      expect(result.status).toBe("CHANGES_REQUESTED");
+      expect(result.currentStep).toBeNull();
+    });
+
+    it("allows owners to request changes even when not assigned to the current step role", async () => {
+      jest
+        .mocked(approvalRepository.findWorkflowRequestForApproval)
+        .mockResolvedValue(requestForApproval);
+      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
+      jest
+        .mocked(approvalRepository.applyWorkflowRequestChangesRequested)
+        .mockResolvedValue({
+          id: requestId,
+          title: "New laptop request",
+          status: "CHANGES_REQUESTED",
+          submittedAt,
+          currentStep: null,
+        });
+
+      await requestChangesWorkflowRequest(
+        organisationId,
+        {
+          userId: approverUserId,
+          roleId: otherRoleId,
+          roleName: DEFAULT_ROLE_NAMES.OWNER,
+        },
+        requestId,
+        { comment: "Changes requested by owner." },
+      );
+
+      expect(approvalRepository.createApprovalDecision).toHaveBeenCalled();
+    });
+
+    it("rejects users who are not assigned to the current step role", async () => {
+      jest
+        .mocked(approvalRepository.findWorkflowRequestForApproval)
+        .mockResolvedValue(requestForApproval);
+      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+
+      await expect(
+        requestChangesWorkflowRequest(
           organisationId,
           {
             userId: approverUserId,

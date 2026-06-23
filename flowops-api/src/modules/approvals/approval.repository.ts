@@ -257,3 +257,17 @@ export async function applyWorkflowRequestRejection(
     select: approvedRequestSelect,
   });
 }
+
+export async function applyWorkflowRequestChangesRequested(
+  workflowRequestId: string,
+  db: DbClient,
+) {
+  return db.workflowRequest.update({
+    where: { id: workflowRequestId },
+    data: {
+      status: "CHANGES_REQUESTED",
+      currentStepId: null,
+    },
+    select: approvedRequestSelect,
+  });
+}

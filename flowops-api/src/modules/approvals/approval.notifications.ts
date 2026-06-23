@@ -69,3 +69,20 @@ export function notifyRequesterOfRejectedRequest(
     "[API] Notification placeholder: requester should be notified that the request was rejected",
   );
 }
+
+/** Placeholder until the notifications module is built in a later sprint. */
+export function notifyRequesterOfChangesRequested(
+  input: RequesterRejectionNotificationInput,
+): void {
+  logger.info(
+    {
+      origin: "api",
+      event: "approval.notification.changes_requested.placeholder",
+      organisationId: input.organisationId,
+      workflowRequestId: input.workflowRequestId,
+      workflowTemplateId: input.workflowTemplateId,
+      requesterId: input.requesterId,
+    },
+    "[API] Notification placeholder: requester should be notified that changes were requested",
+  );
+}

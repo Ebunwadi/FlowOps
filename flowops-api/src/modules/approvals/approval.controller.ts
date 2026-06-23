@@ -11,6 +11,7 @@ import type {
   ApproveWorkflowRequestBody,
   ListPendingApprovalsQuery,
   RejectWorkflowRequestBody,
+  RequestChangesWorkflowRequestBody,
 } from "./approval.validation";
 
 function requireLocalUser(req: Request) {
@@ -104,6 +105,30 @@ export const rejectWorkflowRequestController = asyncHandler(
     sendSuccess(res, {
       data,
       message: "Workflow request rejected successfully",
+    });
+  },
+);
+
+export const requestChangesWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const membership = requireMembership(req);
+
+    const data = await approvalService.requestChangesWorkflowRequest(
+      organisation.id,
+      {
+        userId: localUser.id,
+        roleId: membership.roleId,
+        roleName: membership.role.name,
+      },
+      req.params.id,
+      req.body as RequestChangesWorkflowRequestBody,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Changes requested successfully",
     });
   },
 );
