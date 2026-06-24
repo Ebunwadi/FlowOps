@@ -244,6 +244,37 @@ describe("workflow request service", () => {
           decidedAt: decidedAt.toISOString(),
         },
       ]);
+      expect(result.timeline).toEqual([
+        {
+          stepId,
+          stepName: "Manager Approval",
+          stepOrder: 1,
+          status: "APPROVED",
+          actor: "Grace Hopper",
+          date: decidedAt.toISOString(),
+          comment: "Looks good.",
+        },
+      ]);
+    });
+
+    it("builds a current-step timeline for pending requests without decisions", async () => {
+      const result = await getWorkflowRequestDetail(
+        organisationId,
+        { userId: requesterId, roleId: staffRoleId },
+        requestId,
+      );
+
+      expect(result.timeline).toEqual([
+        {
+          stepId,
+          stepName: "Manager Approval",
+          stepOrder: 1,
+          status: "CURRENT",
+          actor: null,
+          date: null,
+          comment: null,
+        },
+      ]);
     });
 
     it("lets an approver assigned to the current step role view the request", async () => {

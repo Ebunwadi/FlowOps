@@ -111,6 +111,24 @@ export interface WorkflowRequestApprovalHistoryItem {
   decidedAt: string;
 }
 
+export type WorkflowRequestTimelineStatus =
+  | "APPROVED"
+  | "REJECTED"
+  | "CHANGES_REQUESTED"
+  | "CURRENT"
+  | "WAITING"
+  | "SKIPPED";
+
+export interface WorkflowRequestTimelineItem {
+  stepId: string;
+  stepName: string;
+  stepOrder: number;
+  status: WorkflowRequestTimelineStatus;
+  actor: string | null;
+  date: string | null;
+  comment: string | null;
+}
+
 export interface WorkflowRequestDetailResponse {
   id: string;
   organisationId: string;
@@ -128,7 +146,7 @@ export interface WorkflowRequestDetailResponse {
   updatedAt: string;
   attachments: never[];
   approvalHistory: WorkflowRequestApprovalHistoryItem[];
-  history: never[];
+  timeline: WorkflowRequestTimelineItem[];
 }
 
 export interface CancelledWorkflowRequestResponse {
