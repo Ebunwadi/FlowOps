@@ -1,4 +1,5 @@
 import { logger } from "../../config/logger";
+import { recordApprovalRequiredNotification } from "../notifications/notification.service";
 
 interface ApproverNotificationInput {
   organisationId: string;
@@ -9,24 +10,22 @@ interface ApproverNotificationInput {
   stepName: string;
 }
 
-/**
- * Placeholder until the notifications module (and BullMQ queue) is built in a later
- * sprint. For now we record intent in the logs so the submit flow is complete and
- * Sprint 6 approvers have a clear hook to replace.
- */
+/** Persists a notification record; email delivery is deferred to a later sprint. */
 export function notifyApproversOfPendingRequest(
   input: ApproverNotificationInput,
 ): void {
+  recordApprovalRequiredNotification(input);
+
   logger.info(
     {
       origin: "api",
-      event: "workflow_request.notification.placeholder",
+      event: "workflow_request.notification.approval_required",
       organisationId: input.organisationId,
       workflowRequestId: input.workflowRequestId,
       workflowTemplateId: input.workflowTemplateId,
       stepId: input.stepId,
       approverRoleId: input.approverRoleId,
     },
-    `[API] Notification placeholder: approvers for step "${input.stepName}" should be notified`,
+    `[API] Notification recorded: approvers for step "${input.stepName}" should be notified`,
   );
 }

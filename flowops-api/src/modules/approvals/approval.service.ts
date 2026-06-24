@@ -17,6 +17,7 @@ import {
 } from "./approval.helpers";
 import {
   notifyApproversOfNextStep,
+  notifyRequesterOfApprovedStep,
   notifyRequesterOfChangesRequested,
   notifyRequesterOfCompletedRequest,
   notifyRequesterOfRejectedRequest,
@@ -214,6 +215,14 @@ export async function approveWorkflowRequest(
       stepId: nextStep.id,
       approverRoleId: nextStep.approverRoleId,
       stepName: nextStep.name,
+    });
+    notifyRequesterOfApprovedStep({
+      organisationId,
+      workflowRequestId: request.id,
+      workflowTemplateId: request.workflowTemplateId,
+      requesterId: request.requesterId,
+      approvedStepName: currentStep.name,
+      nextStepName: nextStep.name,
     });
   } else {
     notifyRequesterOfCompletedRequest({
