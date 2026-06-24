@@ -3,6 +3,7 @@ import type {
   ListPendingApprovalsParams,
   PaginatedPendingApprovalsResponse,
 } from "@/types/approval";
+import type { SubmittedWorkflowRequestResponse } from "@/types/workflow-request";
 
 function buildQueryString(params: ListPendingApprovalsParams): string {
   const searchParams = new URLSearchParams();
@@ -28,5 +29,35 @@ export function listPendingApprovals(
 ): Promise<PaginatedPendingApprovalsResponse> {
   return apiClient<PaginatedPendingApprovalsResponse>(
     `/approvals/pending${buildQueryString(params)}`,
+  );
+}
+
+export function approveWorkflowRequest(
+  workflowRequestId: string,
+  body: { comment?: string } = {},
+): Promise<SubmittedWorkflowRequestResponse> {
+  return apiClient<SubmittedWorkflowRequestResponse>(
+    `/workflow-requests/${workflowRequestId}/approve`,
+    { method: "POST", body },
+  );
+}
+
+export function rejectWorkflowRequest(
+  workflowRequestId: string,
+  body: { comment: string },
+): Promise<SubmittedWorkflowRequestResponse> {
+  return apiClient<SubmittedWorkflowRequestResponse>(
+    `/workflow-requests/${workflowRequestId}/reject`,
+    { method: "POST", body },
+  );
+}
+
+export function requestChangesWorkflowRequest(
+  workflowRequestId: string,
+  body: { comment: string },
+): Promise<SubmittedWorkflowRequestResponse> {
+  return apiClient<SubmittedWorkflowRequestResponse>(
+    `/workflow-requests/${workflowRequestId}/request-changes`,
+    { method: "POST", body },
   );
 }

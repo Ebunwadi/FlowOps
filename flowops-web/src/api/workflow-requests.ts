@@ -7,6 +7,7 @@ import type {
   SubmittedWorkflowRequestResponse,
   SubmitWorkflowRequestBody,
   UpdateDraftWorkflowRequestBody,
+  WorkflowRequestCommentResponse,
   WorkflowRequestDetailResponse,
   WorkflowRequestStatus,
 } from "@/types/workflow-request";
@@ -114,4 +115,22 @@ export function saveDraftWorkflowRequest(
     method: "POST",
     body,
   });
+}
+
+export function listWorkflowRequestComments(
+  workflowRequestId: string,
+): Promise<WorkflowRequestCommentResponse[]> {
+  return apiClient<WorkflowRequestCommentResponse[]>(
+    `/workflow-requests/${workflowRequestId}/comments`,
+  );
+}
+
+export function createWorkflowRequestComment(
+  workflowRequestId: string,
+  body: { content: string },
+): Promise<WorkflowRequestCommentResponse> {
+  return apiClient<WorkflowRequestCommentResponse>(
+    `/workflow-requests/${workflowRequestId}/comments`,
+    { method: "POST", body },
+  );
 }
