@@ -326,6 +326,23 @@ const requestDetailSelect = {
       },
     },
   },
+  comments: {
+    orderBy: { createdAt: "asc" as const },
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      updatedAt: true,
+      author: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  },
 } as const;
 
 export async function findWorkflowRequestDetail(

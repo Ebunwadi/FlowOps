@@ -6,11 +6,14 @@ import {
 } from "../../common/errors/httpErrors";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
-import { findPermissionKeysByRoleId } from "../roles/role.repository";
 import {
   recordWorkflowRequestAuditEvent,
   WORKFLOW_REQUEST_AUDIT_ACTIONS,
 } from "./workflow-request.audit";
+import {
+  viewerCanAccessWorkflowRequest,
+  type WorkflowRequestViewer,
+} from "./workflow-request.access";
 import {
   toCancelledWorkflowRequestResponse,
   toDraftWorkflowRequestResponse,
@@ -221,12 +224,7 @@ export async function listOrganisationWorkflowRequests(
   };
 }
 
-export interface WorkflowRequestViewer {
-  userId: string;
-  roleId: string;
-}
-
-const REQUESTS_VIEW_ALL_PERMISSION = "requests:view-all";
+export type { WorkflowRequestViewer } from "./workflow-request.access";
 
 export async function getWorkflowRequestDetail(
   organisationId: string,
@@ -242,7 +240,7 @@ export async function getWorkflowRequestDetail(
     throw new NotFoundError("Workflow request not found");
   }
 
-  const canView = await viewerCanAccessRequest(viewer, {
+  const canView = await viewerCanAccessWorkflowRequest(viewer, {
     requesterId: request.requesterId,
     currentStepApproverRoleId: request.currentStep?.approverRoleId ?? null,
   });
@@ -254,28 +252,6 @@ export async function getWorkflowRequestDetail(
   }
 
   return toWorkflowRequestDetailResponse(request);
-}
-
-async function viewerCanAccessRequest(
-  viewer: WorkflowRequestViewer,
-  request: { requesterId: string; currentStepApproverRoleId: string | null },
-): Promise<boolean> {
-  // 1. The requester can always view their own request.
-  if (request.requesterId === viewer.userId) {
-    return true;
-  }
-
-  // 2. An approver assigned to the current step's role can view it.
-  if (
-    request.currentStepApproverRoleId !== null &&
-    request.currentStepApproverRoleId === viewer.roleId
-  ) {
-    return true;
-  }
-
-  // 3. Anyone with the organisation-wide view permission can view it.
-  const permissionKeys = await findPermissionKeysByRoleId(viewer.roleId);
-  return permissionKeys.includes(REQUESTS_VIEW_ALL_PERMISSION);
 }
 
 export async function cancelWorkflowRequest(
