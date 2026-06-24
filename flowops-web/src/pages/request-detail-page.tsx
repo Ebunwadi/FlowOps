@@ -9,6 +9,9 @@ import {
 import { useAuth } from "@/auth/use-auth";
 import { useOrganisation } from "@/auth/use-organisation";
 import { usePermissions } from "@/auth/use-permissions";
+import { RequestApprovalHistory } from "@/components/requests/request-approval-history";
+import { RequestComments } from "@/components/requests/request-comments";
+import { RequestTimeline } from "@/components/requests/request-timeline";
 import { WorkflowRequestStatusBadge } from "@/components/requests/workflow-request-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,17 +28,38 @@ import {
   formatWorkflowRequestDateTime,
   formatWorkflowRequestValue,
   isCancellableStatus,
-  type WorkflowRequestApprovalStepDetail,
   type WorkflowRequestDetailResponse,
   type WorkflowRequestValueDetail,
 } from "@/types/workflow-request";
+
+function canCommentOnRequest(
+  request: WorkflowRequestDetailResponse,
+  userId: string | undefined,
+  roleId: string | undefined,
+  hasViewAll: boolean,
+): boolean {
+  if (!userId) {
+    return false;
+  }
+
+  if (request.requester.id === userId) {
+    return true;
+  }
+
+  if (hasViewAll) {
+    return true;
+  }
+
+  const currentStep = request.approvalSteps.find((step) => step.isCurrent);
+  return Boolean(currentStep && roleId && currentStep.approverRole.id === roleId);
+}
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { currentOrganisation } = useOrganisation();
+  const { currentOrganisation, membershipAccess } = useOrganisation();
   const { profile } = useAuth();
   const { hasPermission } = usePermissions();
 
@@ -111,6 +135,14 @@ export function RequestDetailPage() {
     isOwner &&
     hasPermission("requests:cancel") &&
     isCancellableStatus(request.status);
+  const canComment = canCommentOnRequest(
+    request,
+    profile?.id,
+    membershipAccess?.role.id,
+    hasPermission("requests:view-all"),
+  );
+  const showReviewLink =
+    hasPermission("approvals:view") && request.status === "PENDING_APPROVAL";
 
   const handleCancel = () => {
     if (!window.confirm("Cancel this request? This action cannot be undone.")) {
@@ -118,11 +150,6 @@ export function RequestDetailPage() {
     }
     cancelMutation.mutate();
   };
-
-  const orderedValues = request.values;
-  const orderedSteps = [...request.approvalSteps].sort(
-    (a, b) => a.stepOrder - b.stepOrder,
-  );
 
   return (
     <div className="space-y-6">
@@ -169,6 +196,11 @@ export function RequestDetailPage() {
               <Link to={`/requests/${request.id}/edit`}>Edit draft</Link>
             </Button>
           ) : null}
+          {showReviewLink ? (
+            <Button asChild type="button">
+              <Link to={`/approvals/${request.id}`}>Review</Link>
+            </Button>
+          ) : null}
           {canCancel ? (
             <Button
               disabled={cancelMutation.isPending}
@@ -205,13 +237,13 @@ export function RequestDetailPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {orderedValues.length === 0 ? (
+            {request.values.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No field values were provided for this request.
               </p>
             ) : (
               <dl className="space-y-4">
-                {orderedValues.map((value) => (
+                {request.values.map((value) => (
                   <RequestValueRow key={value.workflowFieldId} value={value} />
                 ))}
               </dl>
@@ -222,23 +254,41 @@ export function RequestDetailPage() {
 
       <Card className="border-border/80 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg">Approval steps</CardTitle>
+          <CardTitle className="text-lg">Approval timeline</CardTitle>
           <CardDescription>
-            Steps are executed in order from first to last approver.
+            Where this request is in the approval process.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {orderedSteps.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No approval steps defined for this workflow.
-            </p>
-          ) : (
-            <ol className="space-y-3">
-              {orderedSteps.map((step, index) => (
-                <ApprovalStepRow key={step.id} index={index} step={step} />
-              ))}
-            </ol>
-          )}
+          <RequestTimeline items={request.timeline} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Approval history</CardTitle>
+          <CardDescription>
+            Recorded decisions from approvers on each step.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RequestApprovalHistory items={request.approvalHistory} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Comments</CardTitle>
+          <CardDescription>
+            Notes and discussion about this request.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RequestComments
+            canComment={canComment}
+            initialComments={request.comments}
+            workflowRequestId={request.id}
+          />
         </CardContent>
       </Card>
     </div>
@@ -335,56 +385,6 @@ function RequestValueRow({ value }: { value: WorkflowRequestValueDetail }) {
   );
 }
 
-function ApprovalStepRow({
-  step,
-  index,
-}: {
-  step: WorkflowRequestApprovalStepDetail;
-  index: number;
-}) {
-  return (
-    <li
-      className={
-        step.isCurrent
-          ? "rounded-lg border border-primary/40 bg-primary/5 p-4"
-          : "rounded-lg border p-4"
-      }
-    >
-      <div className="flex items-start gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-          {step.stepOrder}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium">
-              Step {index + 1}: {step.name}
-            </p>
-            {step.isCurrent ? (
-              <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Current
-              </span>
-            ) : null}
-          </div>
-          {step.description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
-          ) : null}
-          <p className="mt-2 text-sm text-muted-foreground">
-            Approver role:{" "}
-            <span className="font-medium text-foreground">
-              {step.approverRole.name}
-            </span>
-          </p>
-          {step.slaHours ? (
-            <p className="mt-1 text-sm text-muted-foreground">
-              SLA: {step.slaHours} hours
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </li>
-  );
-}
-
 function RequestDetailSkeleton() {
   return (
     <div className="space-y-6">
@@ -394,6 +394,8 @@ function RequestDetailSkeleton() {
         <div className="h-72 animate-pulse rounded-lg bg-muted lg:col-span-2" />
       </div>
       <div className="h-48 animate-pulse rounded-lg bg-muted" />
+      <div className="h-48 animate-pulse rounded-lg bg-muted" />
+      <div className="h-40 animate-pulse rounded-lg bg-muted" />
     </div>
   );
 }
