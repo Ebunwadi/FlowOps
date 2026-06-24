@@ -21,6 +21,11 @@ export const PROTECTED_NAV_ITEMS: readonly NavItem[] = [
     permissions: ["requests:view-own", "requests:view-all", "requests:create"],
   },
   {
+    label: "Approvals",
+    to: "/approvals",
+    permissions: ["approvals:view"],
+  },
+  {
     label: "Members",
     to: "/organisation/members",
     permissions: ["members:view"],

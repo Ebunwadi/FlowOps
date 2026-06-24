@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { OrganisationRequiredRoute } from "@/components/auth/organisation-required-route";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
+import { ApprovalsPage } from "@/pages/approvals-page";
 import { AuditLogsPage } from "@/pages/audit-logs-page";
 import { AvailableWorkflowsPage } from "@/pages/available-workflows-page";
 import { DashboardPage } from "@/pages/dashboard-page";
@@ -62,6 +63,10 @@ export const router = createBrowserRouter([
               {
                 path: "requests",
                 element: <RequestsPage />,
+              },
+              {
+                path: "approvals",
+                element: <ApprovalsPage />,
               },
               {
                 path: "requests/start",
