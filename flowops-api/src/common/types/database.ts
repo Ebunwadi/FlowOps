@@ -15,4 +15,5 @@ export type DbClient = Pick<
   | "workflowRequestValue"
   | "approval"
   | "comment"
+  | "notification"
 >;

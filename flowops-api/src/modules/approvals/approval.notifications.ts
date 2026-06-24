@@ -1,4 +1,11 @@
 import { logger } from "../../config/logger";
+import {
+  recordApprovalRequiredNotification,
+  recordChangesRequestedNotification,
+  recordRequestApprovedStepNotification,
+  recordRequestCompletedNotification,
+  recordRequestRejectedNotification,
+} from "../notifications/notification.service";
 
 interface ApprovalNotificationInput {
   organisationId: string;
@@ -20,69 +27,101 @@ interface RequesterRejectionNotificationInput extends RequesterNotificationInput
   comment: string;
 }
 
-/** Placeholder until the notifications module is built in a later sprint. */
+interface RequesterStepApprovedNotificationInput extends RequesterNotificationInput {
+  approvedStepName: string;
+  nextStepName: string;
+}
+
+/** Persists a notification record; email delivery is deferred to a later sprint. */
 export function notifyApproversOfNextStep(input: ApprovalNotificationInput): void {
+  recordApprovalRequiredNotification(input);
+
   logger.info(
     {
       origin: "api",
-      event: "approval.notification.next_step.placeholder",
+      event: "approval.notification.next_step",
       organisationId: input.organisationId,
       workflowRequestId: input.workflowRequestId,
       workflowTemplateId: input.workflowTemplateId,
       stepId: input.stepId,
       approverRoleId: input.approverRoleId,
     },
-    `[API] Notification placeholder: approvers for step "${input.stepName}" should be notified`,
+    `[API] Notification recorded: approvers for step "${input.stepName}" should be notified`,
   );
 }
 
-/** Placeholder until the notifications module is built in a later sprint. */
+/** Persists a notification record; email delivery is deferred to a later sprint. */
+export function notifyRequesterOfApprovedStep(
+  input: RequesterStepApprovedNotificationInput,
+): void {
+  recordRequestApprovedStepNotification(input);
+
+  logger.info(
+    {
+      origin: "api",
+      event: "approval.notification.step_approved",
+      organisationId: input.organisationId,
+      workflowRequestId: input.workflowRequestId,
+      workflowTemplateId: input.workflowTemplateId,
+      requesterId: input.requesterId,
+    },
+    `[API] Notification recorded: requester notified that "${input.approvedStepName}" was approved`,
+  );
+}
+
+/** Persists a notification record; email delivery is deferred to a later sprint. */
 export function notifyRequesterOfCompletedRequest(
   input: RequesterNotificationInput,
 ): void {
+  recordRequestCompletedNotification(input);
+
   logger.info(
     {
       origin: "api",
-      event: "approval.notification.completed.placeholder",
+      event: "approval.notification.completed",
       organisationId: input.organisationId,
       workflowRequestId: input.workflowRequestId,
       workflowTemplateId: input.workflowTemplateId,
       requesterId: input.requesterId,
     },
-    "[API] Notification placeholder: requester should be notified that the request is completed",
+    "[API] Notification recorded: requester should be notified that the request is completed",
   );
 }
 
-/** Placeholder until the notifications module is built in a later sprint. */
+/** Persists a notification record; email delivery is deferred to a later sprint. */
 export function notifyRequesterOfRejectedRequest(
   input: RequesterRejectionNotificationInput,
 ): void {
+  recordRequestRejectedNotification(input);
+
   logger.info(
     {
       origin: "api",
-      event: "approval.notification.rejected.placeholder",
+      event: "approval.notification.rejected",
       organisationId: input.organisationId,
       workflowRequestId: input.workflowRequestId,
       workflowTemplateId: input.workflowTemplateId,
       requesterId: input.requesterId,
     },
-    "[API] Notification placeholder: requester should be notified that the request was rejected",
+    "[API] Notification recorded: requester should be notified that the request was rejected",
   );
 }
 
-/** Placeholder until the notifications module is built in a later sprint. */
+/** Persists a notification record; email delivery is deferred to a later sprint. */
 export function notifyRequesterOfChangesRequested(
   input: RequesterRejectionNotificationInput,
 ): void {
+  recordChangesRequestedNotification(input);
+
   logger.info(
     {
       origin: "api",
-      event: "approval.notification.changes_requested.placeholder",
+      event: "approval.notification.changes_requested",
       organisationId: input.organisationId,
       workflowRequestId: input.workflowRequestId,
       workflowTemplateId: input.workflowTemplateId,
       requesterId: input.requesterId,
     },
-    "[API] Notification placeholder: requester should be notified that changes were requested",
+    "[API] Notification recorded: requester should be notified that changes were requested",
   );
 }

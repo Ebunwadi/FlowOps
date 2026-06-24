@@ -7,6 +7,7 @@ import { prisma } from "../src/config/database";
 import { recordApprovalAuditEvent } from "../src/modules/approvals/approval.audit";
 import {
   notifyApproversOfNextStep,
+  notifyRequesterOfApprovedStep,
   notifyRequesterOfChangesRequested,
   notifyRequesterOfCompletedRequest,
   notifyRequesterOfRejectedRequest,
@@ -33,6 +34,7 @@ jest.mock("../src/modules/approvals/approval.audit", () => ({
 }));
 jest.mock("../src/modules/approvals/approval.notifications", () => ({
   notifyApproversOfNextStep: jest.fn(),
+  notifyRequesterOfApprovedStep: jest.fn(),
   notifyRequesterOfCompletedRequest: jest.fn(),
   notifyRequesterOfRejectedRequest: jest.fn(),
   notifyRequesterOfChangesRequested: jest.fn(),
@@ -214,6 +216,7 @@ describe("approval service", () => {
         prisma,
       );
       expect(notifyApproversOfNextStep).toHaveBeenCalled();
+      expect(notifyRequesterOfApprovedStep).toHaveBeenCalled();
       expect(notifyRequesterOfCompletedRequest).not.toHaveBeenCalled();
       expect(result.status).toBe("PENDING_APPROVAL");
       expect(result.currentStep).toMatchObject({ id: stepTwoId });
