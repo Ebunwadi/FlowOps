@@ -165,6 +165,7 @@ describe("workflow request service", () => {
         },
       ],
       approvals: [],
+      comments: [],
     };
 
     beforeEach(() => {

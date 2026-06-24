@@ -9,6 +9,10 @@ import {
   buildWorkflowRequestTimeline,
   type WorkflowRequestTimelineItem,
 } from "../approvals/approval.timeline";
+import {
+  toWorkflowRequestCommentResponse,
+  type WorkflowRequestCommentResponse,
+} from "../comments/comment.mapper";
 
 export interface WorkflowRequestStepSummary {
   id: string;
@@ -144,6 +148,7 @@ export interface WorkflowRequestDetailResponse {
   attachments: never[];
   approvalHistory: WorkflowRequestApprovalHistoryItem[];
   timeline: WorkflowRequestTimelineItem[];
+  comments: WorkflowRequestCommentResponse[];
 }
 
 interface WorkflowRequestDetailRecord {
@@ -193,6 +198,18 @@ interface WorkflowRequestDetailRecord {
     decidedAt: Date;
     workflowStep: { id: string; name: string; stepOrder: number };
     approver: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+    };
+  }>;
+  comments: Array<{
+    id: string;
+    content: string;
+    createdAt: Date;
+    updatedAt: Date;
+    author: {
       id: string;
       firstName: string | null;
       lastName: string | null;
@@ -264,6 +281,7 @@ export function toWorkflowRequestDetailResponse(
       })),
       approvals: request.approvals,
     }),
+    comments: request.comments.map(toWorkflowRequestCommentResponse),
   };
 }
 

@@ -129,6 +129,14 @@ export interface WorkflowRequestTimelineItem {
   comment: string | null;
 }
 
+export interface WorkflowRequestCommentResponse {
+  id: string;
+  content: string;
+  author: WorkflowRequestRequesterSummary;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface WorkflowRequestDetailResponse {
   id: string;
   organisationId: string;
@@ -147,6 +155,7 @@ export interface WorkflowRequestDetailResponse {
   attachments: never[];
   approvalHistory: WorkflowRequestApprovalHistoryItem[];
   timeline: WorkflowRequestTimelineItem[];
+  comments: WorkflowRequestCommentResponse[];
 }
 
 export interface CancelledWorkflowRequestResponse {
