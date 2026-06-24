@@ -5,6 +5,10 @@ import type {
 } from "../../generated/prisma/client";
 import type { WorkflowRequestApprovalHistoryItem } from "../approvals/approval.mapper";
 import { toWorkflowRequestApprovalHistoryItem } from "../approvals/approval.mapper";
+import {
+  buildWorkflowRequestTimeline,
+  type WorkflowRequestTimelineItem,
+} from "../approvals/approval.timeline";
 
 export interface WorkflowRequestStepSummary {
   id: string;
@@ -139,7 +143,7 @@ export interface WorkflowRequestDetailResponse {
   updatedAt: string;
   attachments: never[];
   approvalHistory: WorkflowRequestApprovalHistoryItem[];
-  history: never[];
+  timeline: WorkflowRequestTimelineItem[];
 }
 
 interface WorkflowRequestDetailRecord {
@@ -250,7 +254,16 @@ export function toWorkflowRequestDetailResponse(
     updatedAt: request.updatedAt.toISOString(),
     attachments: [],
     approvalHistory: request.approvals.map(toWorkflowRequestApprovalHistoryItem),
-    history: [],
+    timeline: buildWorkflowRequestTimeline({
+      requestStatus: request.status,
+      currentStepId: request.currentStep?.id ?? null,
+      steps: request.workflowTemplate.steps.map((step) => ({
+        id: step.id,
+        name: step.name,
+        stepOrder: step.stepOrder,
+      })),
+      approvals: request.approvals,
+    }),
   };
 }
 
