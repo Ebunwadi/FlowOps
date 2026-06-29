@@ -80,7 +80,6 @@ model Role {
   members      OrganisationMember[]
   permissions  RolePermission[]
   approvalSteps WorkflowStep[]
-  notifications Notification[]
 
   @@unique([organisationId, name])
   @@map("roles")
@@ -150,12 +149,15 @@ enum ApprovalDecision {
   CHANGES_REQUESTED
 }
 
-enum NotificationEvent {
+enum NotificationType {
   APPROVAL_REQUIRED
-  REQUEST_APPROVED_STEP
+  REQUEST_APPROVED
   REQUEST_REJECTED
   REQUEST_COMPLETED
   CHANGES_REQUESTED
+  COMMENT_ADDED
+  MEMBER_INVITED
+  WORKFLOW_UPDATED
 }
 
 /// Org-scoped workflow definition with dynamic form fields and approval steps.
@@ -254,7 +256,6 @@ model WorkflowRequest {
   values           WorkflowRequestValue[]
   approvals        Approval[]
   comments         Comment[]
-  notifications    Notification[]
 
   @@index([organisationId])
   @@index([workflowTemplateId])
@@ -320,29 +321,27 @@ model Comment {
   @@map("comments")
 }
 
-/// In-app notification record for workflow and approval events (email delivery deferred).
+/// In-app notification delivered to a single organisation member.
 model Notification {
-  id                String            @id @default(uuid())
-  organisationId    String
-  event             NotificationEvent
-  recipientUserId   String?
-  recipientRoleId   String?
-  workflowRequestId String?
-  title             String
-  body              String?
-  metadata          Json?
-  readAt            DateTime?
-  createdAt         DateTime          @default(now())
+  id             String           @id @default(uuid())
+  organisationId String
+  recipientId    String
+  type           NotificationType
+  title          String
+  message        String
+  entityType     String?
+  entityId       String?
+  actionUrl      String?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
 
-  organisation    Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  recipientUser   User?            @relation("NotificationRecipient", fields: [recipientUserId], references: [id])
-  recipientRole   Role?            @relation(fields: [recipientRoleId], references: [id])
-  workflowRequest WorkflowRequest? @relation(fields: [workflowRequestId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  recipient    User         @relation("NotificationRecipient", fields: [recipientId], references: [id])
 
   @@index([organisationId])
-  @@index([recipientUserId])
-  @@index([recipientRoleId])
-  @@index([workflowRequestId])
-  @@index([event])
+  @@index([recipientId])
+  @@index([type])
+  @@index([isRead])
   @@map("notifications")
 }

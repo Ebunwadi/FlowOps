@@ -8,6 +8,7 @@ interface ApproverNotificationInput {
   stepId: string;
   approverRoleId: string;
   stepName: string;
+  requestTitle?: string | null;
 }
 
 /** Persists a notification record; email delivery is deferred to a later sprint. */

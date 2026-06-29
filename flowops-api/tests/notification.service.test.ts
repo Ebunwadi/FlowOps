@@ -1,6 +1,7 @@
 import * as notificationRepository from "../src/modules/notifications/notification.repository";
 import {
-  NOTIFICATION_EVENTS,
+  NOTIFICATION_ENTITY_TYPES,
+  NOTIFICATION_TYPES,
   recordApprovalRequiredNotification,
   recordChangesRequestedNotification,
   recordNotification,
@@ -16,6 +17,7 @@ describe("notification service", () => {
   const requestId = "aaaa9999-9999-4999-8999-999999999999";
   const templateId = "99999999-9999-4999-8999-999999999999";
   const requesterId = "770e8400-e29b-41d4-a716-446655440002";
+  const approverUserId = "660e8400-e29b-41d4-a716-446655440001";
   const approverRoleId = "44444444-4444-4444-8444-444444444444";
   const stepId = "33333333-3333-4333-8333-333333333333";
 
@@ -25,15 +27,27 @@ describe("notification service", () => {
       .mocked(notificationRepository.createNotificationRecord)
       .mockResolvedValue({
         id: "notif-1",
-        event: "APPROVAL_REQUIRED",
+        type: "APPROVAL_REQUIRED",
         organisationId,
-        recipientUserId: null,
-        recipientRoleId: approverRoleId,
-        workflowRequestId: requestId,
-      } as never);
+        recipientId: approverUserId,
+        title: "Approval required",
+        message: "Test message",
+        entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+        entityId: requestId,
+        actionUrl: `/approvals/${requestId}`,
+        isRead: false,
+        readAt: null,
+        createdAt: new Date(),
+      });
+    jest
+      .mocked(notificationRepository.findActiveRecipientIdsByRole)
+      .mockResolvedValue([approverUserId]);
+    jest
+      .mocked(notificationRepository.createManyNotificationRecords)
+      .mockResolvedValue({ count: 1 });
   });
 
-  it("records approval required notifications for a role", async () => {
+  it("records approval required notifications for each active member with the approver role", async () => {
     recordApprovalRequiredNotification({
       organisationId,
       workflowRequestId: requestId,
@@ -41,19 +55,27 @@ describe("notification service", () => {
       stepId,
       approverRoleId,
       stepName: "Manager Approval",
+      requestTitle: "New laptop request",
     });
 
     await Promise.resolve();
 
-    expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
+    expect(notificationRepository.findActiveRecipientIdsByRole).toHaveBeenCalledWith(
+      organisationId,
+      approverRoleId,
+    );
+    expect(notificationRepository.createManyNotificationRecords).toHaveBeenCalledWith([
       expect.objectContaining({
         organisationId,
-        event: NOTIFICATION_EVENTS.APPROVAL_REQUIRED,
-        recipientRoleId: approverRoleId,
-        workflowRequestId: requestId,
-        title: "Approval required: Manager Approval",
+        recipientId: approverUserId,
+        type: NOTIFICATION_TYPES.APPROVAL_REQUIRED,
+        title: "Approval required",
+        message: 'New laptop request is waiting for your approval at "Manager Approval".',
+        entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+        entityId: requestId,
+        actionUrl: `/approvals/${requestId}`,
       }),
-    );
+    ]);
   });
 
   it("records request completed notifications for the requester", async () => {
@@ -68,13 +90,16 @@ describe("notification service", () => {
 
     expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        event: NOTIFICATION_EVENTS.REQUEST_COMPLETED,
-        recipientUserId: requesterId,
+        type: NOTIFICATION_TYPES.REQUEST_COMPLETED,
+        recipientId: requesterId,
+        entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+        entityId: requestId,
+        actionUrl: `/requests/${requestId}`,
       }),
     );
   });
 
-  it("records rejected notifications with the comment as body", async () => {
+  it("records rejected notifications with the comment as message", async () => {
     recordRequestRejectedNotification({
       organisationId,
       workflowRequestId: requestId,
@@ -87,8 +112,8 @@ describe("notification service", () => {
 
     expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        event: NOTIFICATION_EVENTS.REQUEST_REJECTED,
-        body: "Budget not approved.",
+        type: NOTIFICATION_TYPES.REQUEST_REJECTED,
+        message: "Budget not approved.",
       }),
     );
   });
@@ -106,8 +131,8 @@ describe("notification service", () => {
 
     expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        event: NOTIFICATION_EVENTS.CHANGES_REQUESTED,
-        recipientUserId: requesterId,
+        type: NOTIFICATION_TYPES.CHANGES_REQUESTED,
+        recipientId: requesterId,
       }),
     );
   });
@@ -126,8 +151,8 @@ describe("notification service", () => {
 
     expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        event: NOTIFICATION_EVENTS.REQUEST_APPROVED_STEP,
-        recipientUserId: requesterId,
+        type: NOTIFICATION_TYPES.REQUEST_APPROVED,
+        recipientId: requesterId,
       }),
     );
   });
@@ -140,10 +165,13 @@ describe("notification service", () => {
     expect(() =>
       recordNotification({
         organisationId,
-        event: NOTIFICATION_EVENTS.APPROVAL_REQUIRED,
-        recipientRoleId: approverRoleId,
-        workflowRequestId: requestId,
-        title: "Approval required",
+        recipientId: requesterId,
+        type: NOTIFICATION_TYPES.REQUEST_COMPLETED,
+        title: "Request completed",
+        message: "Your workflow request has been fully approved.",
+        entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+        entityId: requestId,
+        actionUrl: `/requests/${requestId}`,
       }),
     ).not.toThrow();
 

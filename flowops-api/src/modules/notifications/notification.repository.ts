@@ -1,17 +1,33 @@
-import type { NotificationEvent, Prisma } from "../../generated/prisma/client";
+import type { NotificationType } from "../../generated/prisma/client";
 import type { DbClient } from "../../common/types/database";
+import { MembershipStatus } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
 
 export interface CreateNotificationRecordInput {
   organisationId: string;
-  event: NotificationEvent;
-  recipientUserId?: string | null;
-  recipientRoleId?: string | null;
-  workflowRequestId?: string | null;
+  recipientId: string;
+  type: NotificationType;
   title: string;
-  body?: string | null;
-  metadata?: Prisma.InputJsonValue;
+  message: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  actionUrl?: string | null;
 }
+
+const notificationSelect = {
+  id: true,
+  type: true,
+  organisationId: true,
+  recipientId: true,
+  title: true,
+  message: true,
+  entityType: true,
+  entityId: true,
+  actionUrl: true,
+  isRead: true,
+  readAt: true,
+  createdAt: true,
+} as const;
 
 export async function createNotificationRecord(
   input: CreateNotificationRecordInput,
@@ -20,21 +36,55 @@ export async function createNotificationRecord(
   return db.notification.create({
     data: {
       organisationId: input.organisationId,
-      event: input.event,
-      recipientUserId: input.recipientUserId ?? null,
-      recipientRoleId: input.recipientRoleId ?? null,
-      workflowRequestId: input.workflowRequestId ?? null,
+      recipientId: input.recipientId,
+      type: input.type,
       title: input.title,
-      body: input.body ?? null,
-      metadata: input.metadata ?? undefined,
+      message: input.message,
+      entityType: input.entityType ?? null,
+      entityId: input.entityId ?? null,
+      actionUrl: input.actionUrl ?? null,
+    },
+    select: notificationSelect,
+  });
+}
+
+export async function createManyNotificationRecords(
+  inputs: CreateNotificationRecordInput[],
+  db: DbClient = prisma,
+) {
+  if (inputs.length === 0) {
+    return { count: 0 };
+  }
+
+  return db.notification.createMany({
+    data: inputs.map((input) => ({
+      organisationId: input.organisationId,
+      recipientId: input.recipientId,
+      type: input.type,
+      title: input.title,
+      message: input.message,
+      entityType: input.entityType ?? null,
+      entityId: input.entityId ?? null,
+      actionUrl: input.actionUrl ?? null,
+    })),
+  });
+}
+
+export async function findActiveRecipientIdsByRole(
+  organisationId: string,
+  roleId: string,
+  db: DbClient = prisma,
+): Promise<string[]> {
+  const members = await db.organisationMember.findMany({
+    where: {
+      organisationId,
+      roleId,
+      status: MembershipStatus.ACTIVE,
     },
     select: {
-      id: true,
-      event: true,
-      organisationId: true,
-      recipientUserId: true,
-      recipientRoleId: true,
-      workflowRequestId: true,
+      userId: true,
     },
   });
+
+  return members.map((member) => member.userId);
 }

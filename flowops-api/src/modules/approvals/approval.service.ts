@@ -216,6 +216,7 @@ export async function approveWorkflowRequest(
       stepId: nextStep.id,
       approverRoleId: nextStep.approverRoleId,
       stepName: nextStep.name,
+      requestTitle: request.title,
     });
     notifyRequesterOfApprovedStep({
       organisationId,
