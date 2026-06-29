@@ -5,6 +5,7 @@ import {
   ValidationError,
 } from "../src/common/errors/httpErrors";
 import { prisma } from "../src/config/database";
+import * as approvalRepository from "../src/modules/approvals/approval.repository";
 import * as roleRepository from "../src/modules/roles/role.repository";
 import { recordWorkflowRequestAuditEvent } from "../src/modules/workflow-requests/workflow-request.audit";
 import { notifyApproversOfPendingRequest } from "../src/modules/workflow-requests/workflow-request.notifications";
@@ -20,6 +21,7 @@ import {
   updateDraftWorkflowRequest,
 } from "../src/modules/workflow-requests/workflow-request.service";
 
+jest.mock("../src/modules/approvals/approval.repository");
 jest.mock("../src/modules/workflow-requests/workflow-request.repository");
 jest.mock("../src/modules/roles/role.repository");
 jest.mock("../src/modules/workflow-requests/workflow-request.notifications", () => ({
@@ -29,8 +31,10 @@ jest.mock("../src/modules/workflow-requests/workflow-request.audit", () => ({
   recordWorkflowRequestAuditEvent: jest.fn(),
   WORKFLOW_REQUEST_AUDIT_ACTIONS: {
     SUBMITTED: "WORKFLOW_REQUEST_SUBMITTED",
+    RESUBMITTED: "WORKFLOW_REQUEST_RESUBMITTED",
     DRAFT_CREATED: "WORKFLOW_REQUEST_DRAFT_CREATED",
     DRAFT_UPDATED: "WORKFLOW_REQUEST_DRAFT_UPDATED",
+    CHANGES_REQUESTED_UPDATED: "WORKFLOW_REQUEST_CHANGES_REQUESTED_UPDATED",
     CANCELLED: "WORKFLOW_REQUEST_CANCELLED",
   },
 }));
@@ -550,6 +554,7 @@ describe("workflow request service", () => {
       status: "PENDING_APPROVAL" as const,
       workflowTemplateId: templateId,
       title: "New laptop request",
+      currentStepId: stepId,
       values: [],
     };
 
@@ -680,6 +685,7 @@ describe("workflow request service", () => {
       status: "DRAFT" as const,
       workflowTemplateId: templateId,
       title: "Draft",
+      currentStepId: null,
       values: [],
     };
 
@@ -722,7 +728,7 @@ describe("workflow request service", () => {
       ).rejects.toBeInstanceOf(AuthorizationError);
     });
 
-    it("rejects updating a non-draft request", async () => {
+    it("rejects updating a request that is no longer editable", async () => {
       jest
         .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
         .mockResolvedValue({ ...existingDraft, status: "PENDING_APPROVAL" });
@@ -732,6 +738,28 @@ describe("workflow request service", () => {
           title: "Too late",
         }),
       ).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("updates a changes-requested request owned by the requester", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue({
+          ...existingDraft,
+          status: "CHANGES_REQUESTED",
+          currentStepId: stepId,
+        });
+
+      const result = await updateDraftWorkflowRequest(
+        organisationId,
+        requesterId,
+        requestId,
+        { title: "Updated after feedback" },
+      );
+
+      expect(result.title).toBe("Updated draft");
+      expect(
+        workflowRequestRepository.updateDraftWorkflowRequestRecord,
+      ).toHaveBeenCalledTimes(1);
     });
 
     it("rejects when the draft is not found", async () => {
@@ -757,6 +785,7 @@ describe("workflow request service", () => {
           status: "DRAFT",
           workflowTemplateId: templateId,
           title: "Draft",
+          currentStepId: null,
           values: validValues,
         });
       jest
@@ -793,6 +822,7 @@ describe("workflow request service", () => {
           status: "DRAFT",
           workflowTemplateId: templateId,
           title: "Draft",
+          currentStepId: null,
           values: [{ workflowFieldId: itemFieldId, value: "Laptop" }],
         });
 
@@ -808,6 +838,73 @@ describe("workflow request service", () => {
       await expect(
         submitDraftWorkflowRequest(organisationId, otherUserId, requestId),
       ).rejects.toBeInstanceOf(AuthorizationError);
+    });
+
+    it("resubmits a changes-requested request back into the approval flow", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue({
+          id: requestId,
+          requesterId,
+          status: "CHANGES_REQUESTED",
+          workflowTemplateId: templateId,
+          title: "Updated request",
+          currentStepId: stepId,
+          values: validValues,
+        });
+      jest
+        .mocked(workflowRequestRepository.resubmitChangesRequestedWorkflowRequestRecord)
+        .mockResolvedValue(submittedRecord);
+
+      const result = await submitDraftWorkflowRequest(
+        organisationId,
+        requesterId,
+        requestId,
+      );
+
+      expect(result.status).toBe("PENDING_APPROVAL");
+      expect(
+        workflowRequestRepository.resubmitChangesRequestedWorkflowRequestRecord,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workflowRequestId: requestId,
+          currentStepId: stepId,
+        }),
+        expect.anything(),
+      );
+      expect(notifyApproversOfPendingRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to the latest changes-requested step when currentStepId is missing", async () => {
+      jest
+        .mocked(workflowRequestRepository.findWorkflowRequestForMutation)
+        .mockResolvedValue({
+          id: requestId,
+          requesterId,
+          status: "CHANGES_REQUESTED",
+          workflowTemplateId: templateId,
+          title: "Updated request",
+          currentStepId: null,
+          values: validValues,
+        });
+      jest
+        .mocked(approvalRepository.findLatestChangesRequestedStepId)
+        .mockResolvedValue(stepId);
+      jest
+        .mocked(workflowRequestRepository.resubmitChangesRequestedWorkflowRequestRecord)
+        .mockResolvedValue(submittedRecord);
+
+      await submitDraftWorkflowRequest(organisationId, requesterId, requestId);
+
+      expect(approvalRepository.findLatestChangesRequestedStepId).toHaveBeenCalledWith(
+        requestId,
+      );
+      expect(
+        workflowRequestRepository.resubmitChangesRequestedWorkflowRequestRecord,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ currentStepId: stepId }),
+        expect.anything(),
+      );
     });
   });
 });

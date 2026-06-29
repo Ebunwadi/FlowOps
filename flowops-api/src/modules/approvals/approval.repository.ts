@@ -196,11 +196,56 @@ export async function findApprovalDecisionForStep(
       workflowRequestId,
       workflowStepId,
     },
+    orderBy: { decidedAt: "desc" },
     select: {
       id: true,
       decision: true,
     },
   });
+}
+
+export async function findBlockingApprovalDecisionForStep(
+  workflowRequestId: string,
+  workflowStepId: string,
+  requestStatus: "PENDING_APPROVAL" | "CHANGES_REQUESTED" | "APPROVED" | "REJECTED" | "DRAFT" | "SUBMITTED" | "CANCELLED",
+  db: DbClient = prisma,
+) {
+  const latestDecision = await findApprovalDecisionForStep(
+    workflowRequestId,
+    workflowStepId,
+    db,
+  );
+
+  if (!latestDecision) {
+    return null;
+  }
+
+  if (
+    latestDecision.decision === "CHANGES_REQUESTED" &&
+    requestStatus === "PENDING_APPROVAL"
+  ) {
+    return null;
+  }
+
+  return latestDecision;
+}
+
+export async function findLatestChangesRequestedStepId(
+  workflowRequestId: string,
+  db: DbClient = prisma,
+) {
+  const approval = await db.approval.findFirst({
+    where: {
+      workflowRequestId,
+      decision: "CHANGES_REQUESTED",
+    },
+    orderBy: { decidedAt: "desc" },
+    select: {
+      workflowStepId: true,
+    },
+  });
+
+  return approval?.workflowStepId ?? null;
 }
 
 export async function createApprovalDecision(
@@ -266,7 +311,6 @@ export async function applyWorkflowRequestChangesRequested(
     where: { id: workflowRequestId },
     data: {
       status: "CHANGES_REQUESTED",
-      currentStepId: null,
     },
     select: approvedRequestSelect,
   });

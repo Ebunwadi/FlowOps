@@ -30,6 +30,11 @@ interface DynamicRequestFormProps {
   isSavingDraft: boolean;
   initialValues?: Record<string, FieldValue>;
   initialTitle?: string;
+  saveDraftLabel?: string;
+  savingDraftLabel?: string;
+  submitLabel?: string;
+  submittingLabel?: string;
+  showSaveDraft?: boolean;
   onSubmit: (submission: DynamicRequestFormSubmission) => void;
   onSaveDraft: (submission: DynamicRequestFormSubmission) => void;
   onCancel: () => void;
@@ -107,6 +112,11 @@ export function DynamicRequestForm({
   isSavingDraft,
   initialValues,
   initialTitle,
+  saveDraftLabel = "Save draft",
+  savingDraftLabel = "Saving…",
+  submitLabel = "Submit request",
+  submittingLabel = "Submitting…",
+  showSaveDraft = true,
   onSubmit,
   onSaveDraft,
   onCancel,
@@ -256,16 +266,18 @@ export function DynamicRequestForm({
         >
           Cancel
         </Button>
-        <Button
-          disabled={isBusy}
-          onClick={handleSaveDraft}
-          type="button"
-          variant="outline"
-        >
-          {isSavingDraft ? "Saving…" : "Save draft"}
-        </Button>
+        {showSaveDraft ? (
+          <Button
+            disabled={isBusy}
+            onClick={handleSaveDraft}
+            type="button"
+            variant="outline"
+          >
+            {isSavingDraft ? savingDraftLabel : saveDraftLabel}
+          </Button>
+        ) : null}
         <Button disabled={isBusy} type="submit">
-          {isSubmitting ? "Submitting…" : "Submit request"}
+          {isSubmitting ? submittingLabel : submitLabel}
         </Button>
       </div>
     </form>

@@ -28,7 +28,7 @@ import {
   applyWorkflowRequestRejection,
   countPendingApprovals,
   createApprovalDecision,
-  findApprovalDecisionForStep,
+  findBlockingApprovalDecisionForStep,
   findPendingApprovals,
   findWorkflowRequestForApproval,
 } from "./approval.repository";
@@ -86,9 +86,10 @@ async function loadApprovalDecisionContext(
     throw new ConflictError("This request has no current approval step");
   }
 
-  const existingDecision = await findApprovalDecisionForStep(
+  const existingDecision = await findBlockingApprovalDecisionForStep(
     request.id,
     request.currentStep.id,
+    request.status,
   );
 
   if (existingDecision) {

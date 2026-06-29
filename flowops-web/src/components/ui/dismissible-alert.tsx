@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -8,12 +8,15 @@ const variantStyles = {
   warning: "border-amber-200 bg-amber-50 text-amber-900",
 } as const;
 
+export const DEFAULT_ALERT_AUTO_DISMISS_MS = 30_000;
+
 interface DismissibleAlertProps {
   children: ReactNode;
   variant?: keyof typeof variantStyles;
   defaultOpen?: boolean;
   messageKey?: string;
   className?: string;
+  autoDismissMs?: number;
   onDismiss?: () => void;
 }
 
@@ -23,20 +26,33 @@ export function DismissibleAlert({
   defaultOpen = true,
   messageKey = "__static__",
   className,
+  autoDismissMs = DEFAULT_ALERT_AUTO_DISMISS_MS,
   onDismiss,
 }: DismissibleAlertProps) {
   const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => new Set());
 
   const open = defaultOpen && !dismissedKeys.has(messageKey);
 
-  if (!open) {
-    return null;
-  }
-
   const handleDismiss = () => {
     setDismissedKeys((current) => new Set(current).add(messageKey));
     onDismiss?.();
   };
+
+  useEffect(() => {
+    if (!open || autoDismissMs <= 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(handleDismiss, autoDismissMs);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [open, autoDismissMs, messageKey]);
+
+  if (!open) {
+    return null;
+  }
 
   return (
     <div

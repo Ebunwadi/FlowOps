@@ -175,7 +175,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
       jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
       jest.mocked(approvalRepository.applyWorkflowRequestApproval).mockResolvedValue({
         id: requestId,
@@ -236,7 +236,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(finalStepRequest);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
       jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
       jest.mocked(approvalRepository.applyWorkflowRequestApproval).mockResolvedValue({
         id: requestId,
@@ -279,7 +279,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
       jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
       jest.mocked(approvalRepository.applyWorkflowRequestApproval).mockResolvedValue({
         id: requestId,
@@ -307,7 +307,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
 
       await expect(
         approveWorkflowRequest(
@@ -327,7 +327,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue({
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue({
         id: "approval-1",
         decision: "APPROVED",
       });
@@ -389,7 +389,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
       jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
       jest.mocked(approvalRepository.applyWorkflowRequestRejection).mockResolvedValue({
         id: requestId,
@@ -439,7 +439,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
       jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
       jest.mocked(approvalRepository.applyWorkflowRequestRejection).mockResolvedValue({
         id: requestId,
@@ -467,7 +467,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
 
       await expect(
         rejectWorkflowRequest(
@@ -485,11 +485,13 @@ describe("approval service", () => {
   });
 
   describe("requestChangesWorkflowRequest", () => {
-    it("requests changes and clears the current step", async () => {
+    it("requests changes and keeps the current step", async () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest
+        .mocked(approvalRepository.findBlockingApprovalDecisionForStep)
+        .mockResolvedValue(null);
       jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
       jest
         .mocked(approvalRepository.applyWorkflowRequestChangesRequested)
@@ -498,7 +500,10 @@ describe("approval service", () => {
           title: "New laptop request",
           status: "CHANGES_REQUESTED",
           submittedAt,
-          currentStep: null,
+          currentStep: {
+            id: stepOneId,
+            name: "Manager Approval",
+          },
         });
 
       const result = await requestChangesWorkflowRequest(
@@ -534,14 +539,14 @@ describe("approval service", () => {
         comment: "Please add a cost breakdown.",
       });
       expect(result.status).toBe("CHANGES_REQUESTED");
-      expect(result.currentStep).toBeNull();
+      expect(result.currentStep?.id).toBe(stepOneId);
     });
 
     it("allows owners to request changes even when not assigned to the current step role", async () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
       jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
       jest
         .mocked(approvalRepository.applyWorkflowRequestChangesRequested)
@@ -571,7 +576,7 @@ describe("approval service", () => {
       jest
         .mocked(approvalRepository.findWorkflowRequestForApproval)
         .mockResolvedValue(requestForApproval);
-      jest.mocked(approvalRepository.findApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
 
       await expect(
         requestChangesWorkflowRequest(

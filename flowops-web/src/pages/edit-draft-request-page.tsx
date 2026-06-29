@@ -20,9 +20,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { formatApiErrorMessage } from "@/lib/api-errors";
 import { ApiClientError } from "@/types/api";
-import type {
-  WorkflowRequestValueDetail,
-} from "@/types/workflow-request";
+import type { WorkflowRequestValueDetail } from "@/types/workflow-request";
+import { isEditableRequestStatus } from "@/types/workflow-request";
 import type { WorkflowFieldType } from "@/types/workflow-template";
 
 function toFieldErrorMap(error: unknown): Record<string, string> {
@@ -80,6 +79,7 @@ export function EditDraftRequestPage() {
 
   const request = requestQuery.data;
   const templateId = request?.workflowTemplate.id;
+  const isChangesRequested = request?.status === "CHANGES_REQUESTED";
 
   const templateQuery = useQuery({
     queryKey: ["workflow-templates", templateId],
@@ -103,7 +103,9 @@ export function EditDraftRequestPage() {
       setFormError(null);
     },
     onSuccess: () => {
-      navigate(`/requests/${id}`, { state: { draftSaved: true } });
+      navigate(`/requests/${id}`, {
+        state: isChangesRequested ? { changesSaved: true } : { draftSaved: true },
+      });
     },
     onError: (error) => {
       setServerFieldErrors(toFieldErrorMap(error));
@@ -124,7 +126,9 @@ export function EditDraftRequestPage() {
       setFormError(null);
     },
     onSuccess: () => {
-      navigate(`/requests/${id}`, { state: { submitted: true } });
+      navigate(`/requests/${id}`, {
+        state: isChangesRequested ? { resubmitted: true } : { submitted: true },
+      });
     },
     onError: (error) => {
       setServerFieldErrors(toFieldErrorMap(error));
@@ -147,7 +151,7 @@ export function EditDraftRequestPage() {
   if (requestQuery.isError) {
     return (
       <div className="space-y-4">
-        <h1 className="text-[28px] font-semibold tracking-tight">Edit draft</h1>
+        <h1 className="text-[28px] font-semibold tracking-tight">Edit request</h1>
         <DismissibleAlert
           messageKey={formatApiErrorMessage(requestQuery.error)}
           variant="error"
@@ -167,14 +171,14 @@ export function EditDraftRequestPage() {
 
   const isOwner = profile?.id === request.requester.id;
 
-  if (request.status !== "DRAFT" || !isOwner) {
+  if (!isEditableRequestStatus(request.status) || !isOwner) {
     return <Navigate replace to={`/requests/${id}`} />;
   }
 
   if (templateQuery.isError) {
     return (
       <div className="space-y-4">
-        <h1 className="text-[28px] font-semibold tracking-tight">Edit draft</h1>
+        <h1 className="text-[28px] font-semibold tracking-tight">Edit request</h1>
         <DismissibleAlert
           messageKey={formatApiErrorMessage(templateQuery.error)}
           variant="error"
@@ -192,6 +196,11 @@ export function EditDraftRequestPage() {
     return null;
   }
 
+  const pageTitle = isChangesRequested ? "Update request" : "Edit draft";
+  const pageDescription = isChangesRequested
+    ? "An approver asked for changes. Update the request and resubmit it for approval."
+    : "Update your draft and submit it when you are ready.";
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
@@ -200,14 +209,13 @@ export function EditDraftRequestPage() {
             {request.title ?? "Untitled request"}
           </Link>
           <span className="mx-2">/</span>
-          <span>Edit draft</span>
+          <span>{pageTitle}</span>
         </p>
         <h1 className="mt-2 text-[28px] font-semibold tracking-tight text-foreground">
-          Edit draft
+          {pageTitle}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          {request.workflowTemplate.name}. Update your draft and submit it when you
-          are ready.
+          {request.workflowTemplate.name}. {pageDescription}
         </p>
       </div>
 
@@ -237,7 +245,11 @@ export function EditDraftRequestPage() {
         onSubmit={(submission) => {
           submitMutation.mutate(submission);
         }}
+        saveDraftLabel={isChangesRequested ? "Save changes" : undefined}
+        savingDraftLabel={isChangesRequested ? "Saving…" : undefined}
         serverFieldErrors={serverFieldErrors}
+        submitLabel={isChangesRequested ? "Resubmit for approval" : undefined}
+        submittingLabel={isChangesRequested ? "Resubmitting…" : undefined}
         template={templateQuery.data}
       />
     </div>

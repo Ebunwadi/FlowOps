@@ -1,3 +1,4 @@
+import { findLatestChangesRequestedStepId } from "../approvals/approval.repository";
 import {
   AuthorizationError,
   ConflictError,
@@ -36,6 +37,7 @@ import {
   findWorkflowRequestForMutation,
   findWorkflowRequests,
   markWorkflowRequestCancelled,
+  resubmitChangesRequestedWorkflowRequestRecord,
   submitDraftWorkflowRequestRecord,
   updateDraftWorkflowRequestRecord,
 } from "./workflow-request.repository";
@@ -89,6 +91,27 @@ function getFirstApprovalStepOrThrow(template: TemplateForSubmission) {
   }
 
   return firstStep;
+}
+
+const EDITABLE_REQUEST_STATUSES = new Set(["DRAFT", "CHANGES_REQUESTED"]);
+
+async function resolveResubmitStepId(
+  workflowRequestId: string,
+  currentStepId: string | null,
+): Promise<string> {
+  if (currentStepId) {
+    return currentStepId;
+  }
+
+  const stepId = await findLatestChangesRequestedStepId(workflowRequestId);
+
+  if (!stepId) {
+    throw new ConflictError(
+      "This request has no approval step to return to after changes",
+    );
+  }
+
+  return stepId;
 }
 
 export async function submitWorkflowRequest(
@@ -395,11 +418,13 @@ export async function updateDraftWorkflowRequest(
   }
 
   if (existing.requesterId !== requesterId) {
-    throw new AuthorizationError("You can only modify your own draft requests");
+    throw new AuthorizationError("You can only modify your own requests");
   }
 
-  if (existing.status !== "DRAFT") {
-    throw new ConflictError("Only draft requests can be updated");
+  if (!EDITABLE_REQUEST_STATUSES.has(existing.status)) {
+    throw new ConflictError(
+      "Only draft or changes-requested requests can be updated",
+    );
   }
 
   let validatedValues: ValidatedRequestValue[] | undefined;
@@ -433,17 +458,25 @@ export async function updateDraftWorkflowRequest(
   logger.info(
     {
       origin: "api",
-      event: "workflow_request.draft_updated",
+      event:
+        existing.status === "CHANGES_REQUESTED"
+          ? "workflow_request.changes_requested_updated"
+          : "workflow_request.draft_updated",
       organisationId,
       workflowRequestId,
       requesterId,
       replacedValues: input.values !== undefined,
     },
-    `[API] Workflow request draft "${workflowRequestId}" updated`,
+    existing.status === "CHANGES_REQUESTED"
+      ? `[API] Workflow request "${workflowRequestId}" updated after changes requested`
+      : `[API] Workflow request draft "${workflowRequestId}" updated`,
   );
 
   recordWorkflowRequestAuditEvent({
-    action: WORKFLOW_REQUEST_AUDIT_ACTIONS.DRAFT_UPDATED,
+    action:
+      existing.status === "CHANGES_REQUESTED"
+        ? WORKFLOW_REQUEST_AUDIT_ACTIONS.CHANGES_REQUESTED_UPDATED
+        : WORKFLOW_REQUEST_AUDIT_ACTIONS.DRAFT_UPDATED,
     organisationId,
     actorUserId: requesterId,
     entityId: workflowRequestId,
@@ -472,7 +505,16 @@ export async function submitDraftWorkflowRequest(
   }
 
   if (existing.requesterId !== requesterId) {
-    throw new AuthorizationError("You can only submit your own draft requests");
+    throw new AuthorizationError("You can only submit your own requests");
+  }
+
+  if (existing.status === "CHANGES_REQUESTED") {
+    return resubmitChangesRequestedWorkflowRequest(
+      organisationId,
+      requesterId,
+      workflowRequestId,
+      existing,
+    );
   }
 
   if (existing.status !== "DRAFT") {
@@ -547,6 +589,90 @@ export async function submitDraftWorkflowRequest(
     stepId: firstStep.id,
     approverRoleId: firstStep.approverRoleId,
     stepName: firstStep.name,
+  });
+
+  return toSubmittedWorkflowRequestResponse(request);
+}
+
+async function resubmitChangesRequestedWorkflowRequest(
+  organisationId: string,
+  requesterId: string,
+  workflowRequestId: string,
+  existing: NonNullable<Awaited<ReturnType<typeof findWorkflowRequestForMutation>>>,
+): Promise<SubmittedWorkflowRequestResponse> {
+  const template = await loadTemplateForRequestOrThrow(
+    existing.workflowTemplateId,
+    organisationId,
+  );
+
+  assertTemplateIsActive(template);
+
+  const resubmitStepId = await resolveResubmitStepId(
+    workflowRequestId,
+    existing.currentStepId,
+  );
+
+  const resubmitStep = template.steps.find((step) => step.id === resubmitStepId);
+
+  if (!resubmitStep) {
+    throw new ConflictError("The approval step for this request is no longer valid");
+  }
+
+  const submittedValues: SubmittedRequestValue[] = existing.values.map((value) => ({
+    workflowFieldId: value.workflowFieldId,
+    value: value.value as SubmittedRequestValue["value"],
+  }));
+
+  const validatedValues = validateRequestValues(template.fields, submittedValues, {
+    enforceRequired: true,
+  });
+
+  const request = await prisma.$transaction(async (tx) =>
+    resubmitChangesRequestedWorkflowRequestRecord(
+      {
+        workflowRequestId,
+        currentStepId: resubmitStepId,
+        values: validatedValues,
+      },
+      tx,
+    ),
+  );
+
+  logger.info(
+    {
+      origin: "api",
+      event: "workflow_request.resubmitted",
+      organisationId,
+      workflowRequestId: request.id,
+      workflowTemplateId: template.id,
+      requesterId,
+      currentStepId: resubmitStepId,
+      valuesCount: validatedValues.length,
+    },
+    `[API] Workflow request "${request.title ?? request.id}" resubmitted after changes`,
+  );
+
+  recordWorkflowRequestAuditEvent({
+    action: WORKFLOW_REQUEST_AUDIT_ACTIONS.RESUBMITTED,
+    organisationId,
+    actorUserId: requesterId,
+    entityId: request.id,
+    metadata: {
+      workflowTemplateId: template.id,
+      templateName: template.name,
+      status: request.status,
+      currentStepId: resubmitStepId,
+      fromChangesRequested: true,
+    },
+  });
+
+  notifyApproversOfPendingRequest({
+    organisationId,
+    workflowRequestId: request.id,
+    workflowTemplateId: template.id,
+    stepId: resubmitStepId,
+    approverRoleId: resubmitStep.approverRoleId,
+    stepName: resubmitStep.name,
   });
 
   return toSubmittedWorkflowRequestResponse(request);

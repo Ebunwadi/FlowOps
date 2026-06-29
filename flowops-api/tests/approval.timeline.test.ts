@@ -94,10 +94,10 @@ describe("buildWorkflowRequestTimeline", () => {
     expect(timeline[2]?.status).toBe("SKIPPED");
   });
 
-  it("marks future steps as skipped after changes are requested", () => {
+  it("marks future steps as waiting after changes are requested", () => {
     const timeline = buildWorkflowRequestTimeline({
       requestStatus: "CHANGES_REQUESTED",
-      currentStepId: null,
+      currentStepId: managerStep.id,
       steps,
       approvals: [
         {
@@ -115,8 +115,32 @@ describe("buildWorkflowRequestTimeline", () => {
     });
 
     expect(timeline[0]?.status).toBe("CHANGES_REQUESTED");
-    expect(timeline[1]?.status).toBe("SKIPPED");
-    expect(timeline[2]?.status).toBe("SKIPPED");
+    expect(timeline[1]?.status).toBe("WAITING");
+    expect(timeline[2]?.status).toBe("WAITING");
+  });
+
+  it("shows the current step again after resubmitting following changes requested", () => {
+    const timeline = buildWorkflowRequestTimeline({
+      requestStatus: "PENDING_APPROVAL",
+      currentStepId: managerStep.id,
+      steps,
+      approvals: [
+        {
+          decision: "CHANGES_REQUESTED",
+          comment: "Please add a cost breakdown.",
+          decidedAt: new Date("2026-06-21T09:00:00.000Z"),
+          workflowStep: { id: managerStep.id },
+          approver: {
+            firstName: "Sarah",
+            lastName: "Manager",
+            email: "sarah@example.com",
+          },
+        },
+      ],
+    });
+
+    expect(timeline[0]?.status).toBe("CURRENT");
+    expect(timeline[1]?.status).toBe("WAITING");
   });
 
   it("shows all steps as waiting for draft requests", () => {
