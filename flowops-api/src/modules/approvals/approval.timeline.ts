@@ -49,7 +49,24 @@ export interface BuildWorkflowRequestTimelineInput {
   approvals: TimelineApproval[];
 }
 
-const TERMINAL_DECISIONS = new Set<ApprovalDecision>(["REJECTED", "CHANGES_REQUESTED"]);
+const TERMINAL_DECISIONS = new Set<ApprovalDecision>(["REJECTED"]);
+
+function buildLatestApprovalsByStepId(
+  approvals: TimelineApproval[],
+): Map<string, TimelineApproval> {
+  const approvalsByStepId = new Map<string, TimelineApproval>();
+
+  for (const approval of approvals) {
+    const stepId = approval.workflowStep.id;
+    const existing = approvalsByStepId.get(stepId);
+
+    if (!existing || approval.decidedAt > existing.decidedAt) {
+      approvalsByStepId.set(stepId, approval);
+    }
+  }
+
+  return approvalsByStepId;
+}
 
 function formatTimelineActor(approver: TimelineApprover): string {
   const name = [approver.firstName, approver.lastName]
@@ -88,9 +105,7 @@ export function buildWorkflowRequestTimeline(
   input: BuildWorkflowRequestTimelineInput,
 ): WorkflowRequestTimelineItem[] {
   const sortedSteps = [...input.steps].sort((left, right) => left.stepOrder - right.stepOrder);
-  const approvalsByStepId = new Map(
-    input.approvals.map((approval) => [approval.workflowStep.id, approval]),
-  );
+  const approvalsByStepId = buildLatestApprovalsByStepId(input.approvals);
 
   let stopAfterStepOrder: number | null = null;
 
@@ -110,6 +125,22 @@ export function buildWorkflowRequestTimeline(
 
   return sortedSteps.map((step) => {
     const approval = approvalsByStepId.get(step.id);
+
+    if (
+      input.requestStatus === "PENDING_APPROVAL" &&
+      step.id === input.currentStepId &&
+      (!approval || approval.decision === "CHANGES_REQUESTED")
+    ) {
+      return {
+        stepId: step.id,
+        stepName: step.name,
+        stepOrder: step.stepOrder,
+        status: "CURRENT",
+        actor: null,
+        date: null,
+        comment: null,
+      };
+    }
 
     if (approval) {
       return {
@@ -131,18 +162,6 @@ export function buildWorkflowRequestTimeline(
       return buildWaitingTimelineItem(step);
     }
 
-    if (input.requestStatus === "PENDING_APPROVAL" && step.id === input.currentStepId) {
-      return {
-        stepId: step.id,
-        stepName: step.name,
-        stepOrder: step.stepOrder,
-        status: "CURRENT",
-        actor: null,
-        date: null,
-        comment: null,
-      };
-    }
-
     if (
       input.requestStatus === "PENDING_APPROVAL" &&
       currentStepOrder !== null &&
@@ -152,12 +171,23 @@ export function buildWorkflowRequestTimeline(
     }
 
     if (
+      input.requestStatus === "CHANGES_REQUESTED" &&
+      currentStepOrder !== null &&
+      step.stepOrder > currentStepOrder
+    ) {
+      return buildWaitingTimelineItem(step);
+    }
+
+    if (
       input.requestStatus === "CANCELLED" ||
       input.requestStatus === "APPROVED" ||
-      input.requestStatus === "REJECTED" ||
-      input.requestStatus === "CHANGES_REQUESTED"
+      input.requestStatus === "REJECTED"
     ) {
       return buildSkippedTimelineItem(step);
+    }
+
+    if (input.requestStatus === "CHANGES_REQUESTED") {
+      return buildWaitingTimelineItem(step);
     }
 
     return buildWaitingTimelineItem(step);

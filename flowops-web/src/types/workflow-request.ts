@@ -176,6 +176,15 @@ export function isCancellableStatus(status: WorkflowRequestStatus): boolean {
   return CANCELLABLE_STATUSES.includes(status);
 }
 
+const EDITABLE_STATUSES: readonly WorkflowRequestStatus[] = [
+  "DRAFT",
+  "CHANGES_REQUESTED",
+];
+
+export function isEditableRequestStatus(status: WorkflowRequestStatus): boolean {
+  return EDITABLE_STATUSES.includes(status);
+}
+
 const STATUS_LABELS: Record<WorkflowRequestStatus, string> = {
   DRAFT: "Draft",
   SUBMITTED: "Submitted",

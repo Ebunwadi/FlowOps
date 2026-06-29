@@ -28,6 +28,7 @@ import {
   formatWorkflowRequestDateTime,
   formatWorkflowRequestValue,
   isCancellableStatus,
+  isEditableRequestStatus,
   type WorkflowRequestDetailResponse,
   type WorkflowRequestValueDetail,
 } from "@/types/workflow-request";
@@ -66,10 +67,12 @@ export function RequestDetailPage() {
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   const pageState = location.state as
-    | { submitted?: boolean; draftSaved?: boolean }
+    | { submitted?: boolean; draftSaved?: boolean; resubmitted?: boolean; changesSaved?: boolean }
     | null;
   const wasJustSubmitted = Boolean(pageState?.submitted);
   const draftWasSaved = Boolean(pageState?.draftSaved);
+  const wasJustResubmitted = Boolean(pageState?.resubmitted);
+  const changesWereSaved = Boolean(pageState?.changesSaved);
 
   const clearPageState = () => {
     navigate(location.pathname, { replace: true, state: null });
@@ -129,8 +132,12 @@ export function RequestDetailPage() {
   }
 
   const isOwner = profile?.id === request.requester.id;
-  const canEditDraft =
-    isOwner && request.status === "DRAFT" && hasPermission("requests:create");
+  const canEditRequest =
+    isOwner &&
+    isEditableRequestStatus(request.status) &&
+    hasPermission("requests:create");
+  const editButtonLabel =
+    request.status === "CHANGES_REQUESTED" ? "Update request" : "Edit draft";
   const canCancel =
     isOwner &&
     hasPermission("requests:cancel") &&
@@ -167,6 +174,27 @@ export function RequestDetailPage() {
         </DismissibleAlert>
       ) : null}
 
+      {changesWereSaved ? (
+        <DismissibleAlert onDismiss={clearPageState}>
+          Changes saved. Resubmit the request when you are ready for the approver
+          to review it again.
+        </DismissibleAlert>
+      ) : null}
+
+      {wasJustResubmitted ? (
+        <DismissibleAlert onDismiss={clearPageState}>
+          Request resubmitted successfully. It is back in the approval queue for
+          the current step.
+        </DismissibleAlert>
+      ) : null}
+
+      {request.status === "CHANGES_REQUESTED" && isOwner && !wasJustResubmitted ? (
+        <DismissibleAlert variant="warning">
+          An approver requested changes on this request. Update the details and
+          resubmit when you are ready.
+        </DismissibleAlert>
+      ) : null}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
@@ -191,9 +219,9 @@ export function RequestDetailPage() {
           <Button asChild type="button" variant="outline">
             <Link to="/requests">Back to list</Link>
           </Button>
-          {canEditDraft ? (
+          {canEditRequest ? (
             <Button asChild type="button">
-              <Link to={`/requests/${request.id}/edit`}>Edit draft</Link>
+              <Link to={`/requests/${request.id}/edit`}>{editButtonLabel}</Link>
             </Button>
           ) : null}
           {showReviewLink ? (

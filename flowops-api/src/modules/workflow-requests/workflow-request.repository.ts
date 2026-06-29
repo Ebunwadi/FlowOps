@@ -62,6 +62,7 @@ const requestForMutationSelect = {
   status: true,
   workflowTemplateId: true,
   title: true,
+  currentStepId: true,
   values: {
     select: {
       workflowFieldId: true,
@@ -457,6 +458,26 @@ export async function submitDraftWorkflowRequestRecord(
       status: "PENDING_APPROVAL",
       currentStepId: input.currentStepId,
       submittedAt: input.submittedAt,
+    },
+    select: submittedRequestSelect,
+  });
+}
+
+export async function resubmitChangesRequestedWorkflowRequestRecord(
+  input: {
+    workflowRequestId: string;
+    currentStepId: string;
+    values: ValidatedRequestValue[];
+  },
+  db: DbClient,
+) {
+  await replaceRequestValues(input.workflowRequestId, input.values, db);
+
+  return db.workflowRequest.update({
+    where: { id: input.workflowRequestId },
+    data: {
+      status: "PENDING_APPROVAL",
+      currentStepId: input.currentStepId,
     },
     select: submittedRequestSelect,
   });

@@ -24,6 +24,7 @@ import {
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
 import { Textarea } from "@/components/ui/textarea";
 import { formatApiErrorMessage } from "@/lib/api-errors";
+import { cn } from "@/lib/utils";
 import {
   formatRequesterName,
   formatWorkflowRequestDateTime,
@@ -275,8 +276,13 @@ function DecisionPanel({
   canReject: boolean;
   onDecided: () => Promise<void>;
 }) {
-  const [decision, setDecision] = useState<DecisionType | null>(null);
+  const [selectedDecision, setSelectedDecision] = useState<DecisionType | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<DecisionType | null>(null);
   const [comment, setComment] = useState("");
+  const [validationError, setValidationError] = useState<{
+    type: DecisionType;
+    message: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -296,8 +302,10 @@ function DecisionPanel({
     },
     onSuccess: async (_data, type) => {
       setError(null);
+      setValidationError(null);
       setComment("");
-      setDecision(null);
+      setSelectedDecision(null);
+      setPendingDecision(null);
       setSuccess(
         type === "approve"
           ? "Request approved."
@@ -312,14 +320,40 @@ function DecisionPanel({
     },
   });
 
-  const submit = (type: DecisionType) => {
+  const requireCommentMessage = (type: DecisionType) =>
+    type === "reject"
+      ? "Add a comment explaining why you are rejecting this request."
+      : "Add a comment describing the changes you need before this request can proceed.";
+
+  const handleDecisionClick = (type: DecisionType) => {
+    setSelectedDecision(type);
     setSuccess(null);
-    if (type !== "approve" && comment.trim().length === 0) {
-      setDecision(type);
-      setError("A comment is required for this action.");
+    setError(null);
+    setValidationError(null);
+
+    if (type === "approve") {
+      const confirmed = window.confirm(
+        "Are you sure you want to approve this request?",
+      );
+      if (!confirmed) {
+        setSelectedDecision(null);
+        return;
+      }
+
+      setPendingDecision(type);
+      mutation.mutate(type);
       return;
     }
-    setDecision(type);
+
+    if (comment.trim().length === 0) {
+      setValidationError({
+        type,
+        message: requireCommentMessage(type),
+      });
+      return;
+    }
+
+    setPendingDecision(type);
     mutation.mutate(type);
   };
 
@@ -333,7 +367,15 @@ function DecisionPanel({
       </CardHeader>
       <CardContent className="space-y-3">
         {success ? (
-          <DismissibleAlert messageKey={success}>{success}</DismissibleAlert>
+          <DismissibleAlert messageKey={`success-${success}`}>{success}</DismissibleAlert>
+        ) : null}
+        {validationError ? (
+          <DismissibleAlert
+            messageKey={`validation-${validationError.type}`}
+            variant="error"
+          >
+            {validationError.message}
+          </DismissibleAlert>
         ) : null}
         {error ? (
           <DismissibleAlert messageKey={error} variant="error">
@@ -358,6 +400,9 @@ function DecisionPanel({
             value={comment}
             onChange={(event) => {
               setComment(event.target.value);
+              if (validationError && event.target.value.trim().length > 0) {
+                setValidationError(null);
+              }
             }}
           />
         </div>
@@ -365,13 +410,19 @@ function DecisionPanel({
         <div className="flex flex-col gap-2">
           {canApprove ? (
             <Button
+              className={cn(
+                "border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 hover:text-sky-950",
+                selectedDecision === "approve" &&
+                  "ring-2 ring-sky-500 ring-offset-1",
+              )}
               disabled={mutation.isPending}
               onClick={() => {
-                submit("approve");
+                handleDecisionClick("approve");
               }}
               type="button"
+              variant="outline"
             >
-              {mutation.isPending && decision === "approve"
+              {mutation.isPending && pendingDecision === "approve"
                 ? "Approving…"
                 : "Approve"}
             </Button>
@@ -379,26 +430,34 @@ function DecisionPanel({
           {canReject ? (
             <>
               <Button
+                className={cn(
+                  selectedDecision === "request-changes" &&
+                    "border-amber-300 bg-amber-50 text-amber-950 ring-2 ring-amber-500 ring-offset-1 hover:bg-amber-100",
+                )}
                 disabled={mutation.isPending}
                 onClick={() => {
-                  submit("request-changes");
+                  handleDecisionClick("request-changes");
                 }}
                 type="button"
                 variant="outline"
               >
-                {mutation.isPending && decision === "request-changes"
+                {mutation.isPending && pendingDecision === "request-changes"
                   ? "Requesting…"
                   : "Request changes"}
               </Button>
               <Button
+                className={cn(
+                  selectedDecision === "reject" &&
+                    "border-red-300 bg-red-50 text-red-950 ring-2 ring-red-500 ring-offset-1 hover:bg-red-100",
+                )}
                 disabled={mutation.isPending}
                 onClick={() => {
-                  submit("reject");
+                  handleDecisionClick("reject");
                 }}
                 type="button"
                 variant="outline"
               >
-                {mutation.isPending && decision === "reject"
+                {mutation.isPending && pendingDecision === "reject"
                   ? "Rejecting…"
                   : "Reject"}
               </Button>
