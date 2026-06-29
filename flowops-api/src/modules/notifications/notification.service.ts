@@ -1,10 +1,25 @@
 import type { NotificationType } from "../../generated/prisma/client";
+import { NotFoundError } from "../../common/errors/httpErrors";
 import { logger } from "../../config/logger";
 import {
+  toNotificationResponse,
+  type MarkAllNotificationsReadResponse,
+  type NotificationResponse,
+  type PaginatedNotificationsResponse,
+  type UnreadNotificationCountResponse,
+} from "./notification.mapper";
+import {
+  countNotificationsForUser,
+  countUnreadNotificationsForUser,
   createManyNotificationRecords,
   createNotificationRecord,
   findActiveRecipientIdsByRole,
+  findNotificationsForUser,
+  markAllNotificationsAsReadForUser,
+  markNotificationAsRead,
+  type CreateNotificationRecordInput,
 } from "./notification.repository";
+import type { ListNotificationsQuery } from "./notification.validation";
 
 export const NOTIFICATION_TYPES = {
   APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
@@ -30,6 +45,84 @@ export interface RecordNotificationInput {
   entityType?: string | null;
   entityId?: string | null;
   actionUrl?: string | null;
+}
+
+export type CreateNotificationInput = CreateNotificationRecordInput;
+
+export async function createNotification(
+  input: CreateNotificationInput,
+): Promise<NotificationResponse> {
+  const notification = await createNotificationRecord(input);
+  return toNotificationResponse(notification);
+}
+
+export async function createManyNotifications(
+  inputs: CreateNotificationInput[],
+): Promise<{ count: number }> {
+  return createManyNotificationRecords(inputs);
+}
+
+export async function getUserNotifications(
+  organisationId: string,
+  recipientId: string,
+  query: ListNotificationsQuery,
+): Promise<PaginatedNotificationsResponse> {
+  const filters = {
+    organisationId,
+    recipientId,
+    isRead: query.isRead,
+    page: query.page,
+    limit: query.limit,
+  };
+
+  const [notifications, total] = await Promise.all([
+    findNotificationsForUser(filters),
+    countNotificationsForUser(filters),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / query.limit);
+
+  return {
+    items: notifications.map(toNotificationResponse),
+    page: query.page,
+    limit: query.limit,
+    total,
+    totalPages,
+  };
+}
+
+export async function getUnreadNotificationCount(
+  organisationId: string,
+  recipientId: string,
+): Promise<UnreadNotificationCountResponse> {
+  const count = await countUnreadNotificationsForUser(organisationId, recipientId);
+  return { count };
+}
+
+export async function markAsRead(
+  organisationId: string,
+  recipientId: string,
+  notificationId: string,
+): Promise<NotificationResponse> {
+  const notification = await markNotificationAsRead(
+    notificationId,
+    organisationId,
+    recipientId,
+  );
+
+  if (!notification) {
+    throw new NotFoundError("Notification not found");
+  }
+
+  return toNotificationResponse(notification);
+}
+
+export async function markAllAsRead(
+  organisationId: string,
+  recipientId: string,
+): Promise<MarkAllNotificationsReadResponse> {
+  const result = await markAllNotificationsAsReadForUser(organisationId, recipientId);
+  return { updatedCount: result.count };
 }
 
 function workflowRequestActionUrl(requestId: string): string {
