@@ -1,7 +1,14 @@
+import { NotFoundError } from "../src/common/errors/httpErrors";
 import * as notificationRepository from "../src/modules/notifications/notification.repository";
 import {
   NOTIFICATION_ENTITY_TYPES,
   NOTIFICATION_TYPES,
+  createManyNotifications,
+  createNotification,
+  getUnreadNotificationCount,
+  getUserNotifications,
+  markAllAsRead,
+  markAsRead,
   recordApprovalRequiredNotification,
   recordChangesRequestedNotification,
   recordNotification,
@@ -176,5 +183,161 @@ describe("notification service", () => {
     ).not.toThrow();
 
     await Promise.resolve();
+  });
+});
+
+describe("notification inbox service", () => {
+  const organisationId = "550e8400-e29b-41d4-a716-446655440000";
+  const requestId = "aaaa9999-9999-4999-8999-999999999999";
+  const requesterId = "770e8400-e29b-41d4-a716-446655440002";
+  const notificationId = "dddd6666-6666-4666-8666-666666666666";
+  const createdAt = new Date("2026-06-29T12:00:00.000Z");
+
+  const notificationRecord = {
+    id: notificationId,
+    type: "REQUEST_COMPLETED" as const,
+    organisationId,
+    recipientId: requesterId,
+    title: "Request completed",
+    message: "Your workflow request has been fully approved.",
+    entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+    entityId: requestId,
+    actionUrl: `/requests/${requestId}`,
+    isRead: false,
+    readAt: null,
+    createdAt,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("creates a notification and maps the response", async () => {
+    jest
+      .mocked(notificationRepository.createNotificationRecord)
+      .mockResolvedValue(notificationRecord);
+
+    const result = await createNotification({
+      organisationId,
+      recipientId: requesterId,
+      type: NOTIFICATION_TYPES.REQUEST_COMPLETED,
+      title: notificationRecord.title,
+      message: notificationRecord.message,
+      entityType: notificationRecord.entityType,
+      entityId: notificationRecord.entityId,
+      actionUrl: notificationRecord.actionUrl,
+    });
+
+    expect(result).toEqual({
+      id: notificationId,
+      type: "REQUEST_COMPLETED",
+      title: "Request completed",
+      message: "Your workflow request has been fully approved.",
+      entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+      entityId: requestId,
+      actionUrl: `/requests/${requestId}`,
+      isRead: false,
+      readAt: null,
+      createdAt: createdAt.toISOString(),
+    });
+  });
+
+  it("creates many notifications in one batch", async () => {
+    jest
+      .mocked(notificationRepository.createManyNotificationRecords)
+      .mockResolvedValue({ count: 2 });
+
+    const result = await createManyNotifications([
+      {
+        organisationId,
+        recipientId: requesterId,
+        type: NOTIFICATION_TYPES.APPROVAL_REQUIRED,
+        title: "Approval required",
+        message: "Waiting for approval.",
+      },
+      {
+        organisationId,
+        recipientId: requesterId,
+        type: NOTIFICATION_TYPES.APPROVAL_REQUIRED,
+        title: "Approval required",
+        message: "Waiting for approval.",
+      },
+    ]);
+
+    expect(result).toEqual({ count: 2 });
+  });
+
+  it("returns paginated notifications for a user", async () => {
+    jest
+      .mocked(notificationRepository.findNotificationsForUser)
+      .mockResolvedValue([notificationRecord]);
+    jest.mocked(notificationRepository.countNotificationsForUser).mockResolvedValue(1);
+
+    const result = await getUserNotifications(organisationId, requesterId, {
+      page: 1,
+      limit: 20,
+    });
+
+    expect(notificationRepository.findNotificationsForUser).toHaveBeenCalledWith({
+      organisationId,
+      recipientId: requesterId,
+      isRead: undefined,
+      page: 1,
+      limit: 20,
+    });
+    expect(result.items).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(result.totalPages).toBe(1);
+  });
+
+  it("returns unread notification count for a user", async () => {
+    jest
+      .mocked(notificationRepository.countUnreadNotificationsForUser)
+      .mockResolvedValue(3);
+
+    const result = await getUnreadNotificationCount(organisationId, requesterId);
+
+    expect(result).toEqual({ count: 3 });
+  });
+
+  it("marks a notification as read for the recipient", async () => {
+    const readAt = new Date("2026-06-29T12:05:00.000Z");
+    jest.mocked(notificationRepository.markNotificationAsRead).mockResolvedValue({
+      ...notificationRecord,
+      isRead: true,
+      readAt,
+    });
+
+    const result = await markAsRead(organisationId, requesterId, notificationId);
+
+    expect(notificationRepository.markNotificationAsRead).toHaveBeenCalledWith(
+      notificationId,
+      organisationId,
+      requesterId,
+    );
+    expect(result.isRead).toBe(true);
+    expect(result.readAt).toBe(readAt.toISOString());
+  });
+
+  it("throws when marking a notification that does not belong to the user", async () => {
+    jest.mocked(notificationRepository.markNotificationAsRead).mockResolvedValue(null);
+
+    await expect(
+      markAsRead(organisationId, requesterId, notificationId),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("marks all unread notifications as read for the user", async () => {
+    jest
+      .mocked(notificationRepository.markAllNotificationsAsReadForUser)
+      .mockResolvedValue({ count: 4 });
+
+    const result = await markAllAsRead(organisationId, requesterId);
+
+    expect(notificationRepository.markAllNotificationsAsReadForUser).toHaveBeenCalledWith(
+      organisationId,
+      requesterId,
+    );
+    expect(result).toEqual({ updatedCount: 4 });
   });
 });

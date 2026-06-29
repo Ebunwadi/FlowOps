@@ -14,6 +14,20 @@ export interface CreateNotificationRecordInput {
   actionUrl?: string | null;
 }
 
+export interface ListUserNotificationsFilters {
+  organisationId: string;
+  recipientId: string;
+  isRead?: boolean;
+  page: number;
+  limit: number;
+}
+
+export interface CountUserNotificationsFilters {
+  organisationId: string;
+  recipientId: string;
+  isRead?: boolean;
+}
+
 const notificationSelect = {
   id: true,
   type: true,
@@ -29,10 +43,33 @@ const notificationSelect = {
   createdAt: true,
 } as const;
 
+export type NotificationRecord = {
+  id: string;
+  type: NotificationType;
+  organisationId: string;
+  recipientId: string;
+  title: string;
+  message: string;
+  entityType: string | null;
+  entityId: string | null;
+  actionUrl: string | null;
+  isRead: boolean;
+  readAt: Date | null;
+  createdAt: Date;
+};
+
+function buildUserNotificationWhere(filters: CountUserNotificationsFilters) {
+  return {
+    organisationId: filters.organisationId,
+    recipientId: filters.recipientId,
+    ...(filters.isRead !== undefined ? { isRead: filters.isRead } : {}),
+  };
+}
+
 export async function createNotificationRecord(
   input: CreateNotificationRecordInput,
   db: DbClient = prisma,
-) {
+): Promise<NotificationRecord> {
   return db.notification.create({
     data: {
       organisationId: input.organisationId,
@@ -67,6 +104,110 @@ export async function createManyNotificationRecords(
       entityId: input.entityId ?? null,
       actionUrl: input.actionUrl ?? null,
     })),
+  });
+}
+
+export async function findNotificationsForUser(
+  filters: ListUserNotificationsFilters,
+  db: DbClient = prisma,
+): Promise<NotificationRecord[]> {
+  const skip = (filters.page - 1) * filters.limit;
+
+  return db.notification.findMany({
+    where: buildUserNotificationWhere(filters),
+    orderBy: { createdAt: "desc" },
+    skip,
+    take: filters.limit,
+    select: notificationSelect,
+  });
+}
+
+export async function countNotificationsForUser(
+  filters: CountUserNotificationsFilters,
+  db: DbClient = prisma,
+): Promise<number> {
+  return db.notification.count({
+    where: buildUserNotificationWhere(filters),
+  });
+}
+
+export async function countUnreadNotificationsForUser(
+  organisationId: string,
+  recipientId: string,
+  db: DbClient = prisma,
+): Promise<number> {
+  return countNotificationsForUser(
+    {
+      organisationId,
+      recipientId,
+      isRead: false,
+    },
+    db,
+  );
+}
+
+export async function findNotificationForUser(
+  notificationId: string,
+  organisationId: string,
+  recipientId: string,
+  db: DbClient = prisma,
+): Promise<NotificationRecord | null> {
+  return db.notification.findFirst({
+    where: {
+      id: notificationId,
+      organisationId,
+      recipientId,
+    },
+    select: notificationSelect,
+  });
+}
+
+export async function markNotificationAsRead(
+  notificationId: string,
+  organisationId: string,
+  recipientId: string,
+  db: DbClient = prisma,
+): Promise<NotificationRecord | null> {
+  const existing = await findNotificationForUser(
+    notificationId,
+    organisationId,
+    recipientId,
+    db,
+  );
+
+  if (!existing) {
+    return null;
+  }
+
+  if (existing.isRead) {
+    return existing;
+  }
+
+  return db.notification.update({
+    where: { id: notificationId },
+    data: {
+      isRead: true,
+      readAt: new Date(),
+    },
+    select: notificationSelect,
+  });
+}
+
+export async function markAllNotificationsAsReadForUser(
+  organisationId: string,
+  recipientId: string,
+  db: DbClient = prisma,
+) {
+  return db.notification.updateMany({
+    where: {
+      organisationId,
+      recipientId,
+      isRead: false,
+    },
+    data: {
+      isRead: true,
+      readAt: new Date(),
+    },
   });
 }
 
