@@ -1,24 +1,43 @@
-import type { NotificationEvent, Prisma } from "../../generated/prisma/client";
+import type { NotificationType } from "../../generated/prisma/client";
 import { logger } from "../../config/logger";
-import { createNotificationRecord } from "./notification.repository";
+import {
+  createManyNotificationRecords,
+  createNotificationRecord,
+  findActiveRecipientIdsByRole,
+} from "./notification.repository";
 
-export const NOTIFICATION_EVENTS = {
+export const NOTIFICATION_TYPES = {
   APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
-  REQUEST_APPROVED_STEP: "REQUEST_APPROVED_STEP",
+  REQUEST_APPROVED: "REQUEST_APPROVED",
   REQUEST_REJECTED: "REQUEST_REJECTED",
   REQUEST_COMPLETED: "REQUEST_COMPLETED",
   CHANGES_REQUESTED: "CHANGES_REQUESTED",
-} as const satisfies Record<string, NotificationEvent>;
+  COMMENT_ADDED: "COMMENT_ADDED",
+  MEMBER_INVITED: "MEMBER_INVITED",
+  WORKFLOW_UPDATED: "WORKFLOW_UPDATED",
+} as const satisfies Record<string, NotificationType>;
+
+export const NOTIFICATION_ENTITY_TYPES = {
+  WORKFLOW_REQUEST: "WorkflowRequest",
+} as const;
 
 export interface RecordNotificationInput {
   organisationId: string;
-  event: NotificationEvent;
-  recipientUserId?: string | null;
-  recipientRoleId?: string | null;
-  workflowRequestId?: string | null;
+  recipientId: string;
+  type: NotificationType;
   title: string;
-  body?: string | null;
-  metadata?: Prisma.InputJsonValue;
+  message: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  actionUrl?: string | null;
+}
+
+function workflowRequestActionUrl(requestId: string): string {
+  return `/requests/${requestId}`;
+}
+
+function approvalReviewActionUrl(requestId: string): string {
+  return `/approvals/${requestId}`;
 }
 
 export function recordNotification(input: RecordNotificationInput): void {
@@ -27,9 +46,10 @@ export function recordNotification(input: RecordNotificationInput): void {
       {
         origin: "api",
         event: "notification.record_failed",
-        notificationEvent: input.event,
+        notificationType: input.type,
         organisationId: input.organisationId,
-        workflowRequestId: input.workflowRequestId,
+        recipientId: input.recipientId,
+        entityId: input.entityId,
         error,
       },
       "[API] Failed to persist notification record",
@@ -47,6 +67,7 @@ interface RoleApprovalNotificationContext extends WorkflowRequestNotificationCon
   stepId: string;
   approverRoleId: string;
   stepName: string;
+  requestTitle?: string | null;
 }
 
 interface RequesterNotificationContext extends WorkflowRequestNotificationContext {
@@ -62,22 +83,61 @@ interface RequesterStepApprovedContext extends RequesterNotificationContext {
   nextStepName: string;
 }
 
+async function recordApprovalRequiredNotificationsForRole(
+  input: RoleApprovalNotificationContext,
+): Promise<void> {
+  const recipientIds = await findActiveRecipientIdsByRole(
+    input.organisationId,
+    input.approverRoleId,
+  );
+
+  if (recipientIds.length === 0) {
+    logger.warn(
+      {
+        origin: "api",
+        event: "notification.no_recipients_for_role",
+        organisationId: input.organisationId,
+        approverRoleId: input.approverRoleId,
+        workflowRequestId: input.workflowRequestId,
+      },
+      "[API] No active members found for approval notification role",
+    );
+    return;
+  }
+
+  const requestLabel = input.requestTitle?.trim() || "A workflow request";
+  const title = "Approval required";
+  const message = `${requestLabel} is waiting for your approval at "${input.stepName}".`;
+
+  await createManyNotificationRecords(
+    recipientIds.map((recipientId) => ({
+      organisationId: input.organisationId,
+      recipientId,
+      type: NOTIFICATION_TYPES.APPROVAL_REQUIRED,
+      title,
+      message,
+      entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+      entityId: input.workflowRequestId,
+      actionUrl: approvalReviewActionUrl(input.workflowRequestId),
+    })),
+  );
+}
+
 export function recordApprovalRequiredNotification(
   input: RoleApprovalNotificationContext,
 ): void {
-  recordNotification({
-    organisationId: input.organisationId,
-    event: NOTIFICATION_EVENTS.APPROVAL_REQUIRED,
-    recipientRoleId: input.approverRoleId,
-    workflowRequestId: input.workflowRequestId,
-    title: `Approval required: ${input.stepName}`,
-    body: `A workflow request is waiting for approval at step "${input.stepName}".`,
-    metadata: {
-      workflowTemplateId: input.workflowTemplateId,
-      stepId: input.stepId,
-      stepName: input.stepName,
-      approverRoleId: input.approverRoleId,
-    },
+  void recordApprovalRequiredNotificationsForRole(input).catch((error) => {
+    logger.error(
+      {
+        origin: "api",
+        event: "notification.record_failed",
+        notificationType: NOTIFICATION_TYPES.APPROVAL_REQUIRED,
+        organisationId: input.organisationId,
+        workflowRequestId: input.workflowRequestId,
+        error,
+      },
+      "[API] Failed to persist approval required notifications",
+    );
   });
 }
 
@@ -86,16 +146,13 @@ export function recordRequestApprovedStepNotification(
 ): void {
   recordNotification({
     organisationId: input.organisationId,
-    event: NOTIFICATION_EVENTS.REQUEST_APPROVED_STEP,
-    recipientUserId: input.requesterId,
-    workflowRequestId: input.workflowRequestId,
+    recipientId: input.requesterId,
+    type: NOTIFICATION_TYPES.REQUEST_APPROVED,
     title: `Step approved: ${input.approvedStepName}`,
-    body: `Your request was approved at "${input.approvedStepName}" and moved to "${input.nextStepName}".`,
-    metadata: {
-      workflowTemplateId: input.workflowTemplateId,
-      approvedStepName: input.approvedStepName,
-      nextStepName: input.nextStepName,
-    },
+    message: `Your request was approved at "${input.approvedStepName}" and moved to "${input.nextStepName}".`,
+    entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+    entityId: input.workflowRequestId,
+    actionUrl: workflowRequestActionUrl(input.workflowRequestId),
   });
 }
 
@@ -104,14 +161,13 @@ export function recordRequestCompletedNotification(
 ): void {
   recordNotification({
     organisationId: input.organisationId,
-    event: NOTIFICATION_EVENTS.REQUEST_COMPLETED,
-    recipientUserId: input.requesterId,
-    workflowRequestId: input.workflowRequestId,
+    recipientId: input.requesterId,
+    type: NOTIFICATION_TYPES.REQUEST_COMPLETED,
     title: "Request completed",
-    body: "Your workflow request has been fully approved.",
-    metadata: {
-      workflowTemplateId: input.workflowTemplateId,
-    },
+    message: "Your workflow request has been fully approved.",
+    entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+    entityId: input.workflowRequestId,
+    actionUrl: workflowRequestActionUrl(input.workflowRequestId),
   });
 }
 
@@ -120,15 +176,13 @@ export function recordRequestRejectedNotification(
 ): void {
   recordNotification({
     organisationId: input.organisationId,
-    event: NOTIFICATION_EVENTS.REQUEST_REJECTED,
-    recipientUserId: input.requesterId,
-    workflowRequestId: input.workflowRequestId,
+    recipientId: input.requesterId,
+    type: NOTIFICATION_TYPES.REQUEST_REJECTED,
     title: "Request rejected",
-    body: input.comment,
-    metadata: {
-      workflowTemplateId: input.workflowTemplateId,
-      comment: input.comment,
-    },
+    message: input.comment,
+    entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+    entityId: input.workflowRequestId,
+    actionUrl: workflowRequestActionUrl(input.workflowRequestId),
   });
 }
 
@@ -137,14 +191,12 @@ export function recordChangesRequestedNotification(
 ): void {
   recordNotification({
     organisationId: input.organisationId,
-    event: NOTIFICATION_EVENTS.CHANGES_REQUESTED,
-    recipientUserId: input.requesterId,
-    workflowRequestId: input.workflowRequestId,
+    recipientId: input.requesterId,
+    type: NOTIFICATION_TYPES.CHANGES_REQUESTED,
     title: "Changes requested",
-    body: input.comment,
-    metadata: {
-      workflowTemplateId: input.workflowTemplateId,
-      comment: input.comment,
-    },
+    message: input.comment,
+    entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+    entityId: input.workflowRequestId,
+    actionUrl: workflowRequestActionUrl(input.workflowRequestId),
   });
 }

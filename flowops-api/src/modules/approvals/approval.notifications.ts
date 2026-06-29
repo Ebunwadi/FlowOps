@@ -14,6 +14,7 @@ interface ApprovalNotificationInput {
   stepId: string;
   approverRoleId: string;
   stepName: string;
+  requestTitle?: string | null;
 }
 
 interface RequesterNotificationInput {
