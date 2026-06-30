@@ -72,6 +72,21 @@ services:
       - seq_data:/data
     restart: unless-stopped
 
+  redis:
+    image: redis:${REDIS_VERSION:-7-alpine}
+    container_name: flowops-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
   api:
     build:
       context: ./flowops-api
@@ -86,6 +101,7 @@ services:
       KEYCLOAK_ISSUER: http://localhost:8080/realms/${KEYCLOAK_REALM:-flowops}
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/${KEYCLOAK_REALM:-flowops}/protocol/openid-connect/certs
       KEYCLOAK_CLIENT_ID: flowops-web
+      REDIS_URL: redis://redis:6379
     ports:
       - "${PORT:-5000}:5000"
     volumes:
@@ -94,9 +110,34 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       seq:
         condition: service_started
     command: sh -c "npm install && npx prisma migrate deploy && npm run dev"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./flowops-api
+      dockerfile: Dockerfile
+      target: development
+    container_name: flowops-worker
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      SEQ_SERVER_URL: http://seq:80
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ./flowops-api:/app
+      - api_node_modules:/app/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy
+      seq:
+        condition: service_started
+    command: sh -c "npm install && npm run worker:dev"
     restart: unless-stopped
 
   web:
@@ -122,5 +163,6 @@ volumes:
   api_node_modules:
   keycloak_data:
   postgres_data:
+  redis_data:
   seq_data:
   web_node_modules:

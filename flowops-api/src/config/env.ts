@@ -20,6 +20,7 @@ const envSchema = z.object({
     z.string().url().optional(),
   ),
   KEYCLOAK_CLIENT_ID: z.string().min(1).default("flowops-web"),
+  REDIS_URL: z.string().default("redis://localhost:6379"),
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -38,4 +39,5 @@ export const env = {
     parsedEnv.KEYCLOAK_JWKS_URI ??
     `${parsedEnv.KEYCLOAK_ISSUER}/protocol/openid-connect/certs`,
   keycloakClientId: parsedEnv.KEYCLOAK_CLIENT_ID,
+  redisUrl: parsedEnv.REDIS_URL,
 };
