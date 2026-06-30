@@ -10,6 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/server.ts",
+    "worker:dev": "tsx watch src/jobs/workers/worker.ts",
+    "worker:start": "node dist/jobs/workers/worker.js",
     "db:generate": "npx prisma generate",
     "db:migrate": "npx prisma migrate dev",
     "db:migrate:deploy": "npx prisma migrate deploy",
@@ -26,6 +28,7 @@
     "@autotelic/pino-seq-transport": "^0.1.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
+    "bullmq": "^5.79.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
