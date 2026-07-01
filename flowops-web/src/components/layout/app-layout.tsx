@@ -2,6 +2,7 @@ import { Link, Outlet } from "react-router-dom";
 
 import { AuthControls } from "@/components/auth/auth-controls";
 import { AppNav } from "@/components/layout/app-nav";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { OrganisationSwitcher } from "@/components/layout/organisation-switcher";
 
 export function AppLayout() {
@@ -18,6 +19,7 @@ export function AppLayout() {
             </Link>
             <div className="flex min-w-0 flex-1 items-center justify-end gap-4">
               <OrganisationSwitcher />
+              <NotificationBell />
               <AuthControls />
             </div>
           </div>
