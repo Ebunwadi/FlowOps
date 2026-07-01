@@ -18,6 +18,19 @@ import {
 } from "../src/modules/notifications/notification.service";
 
 jest.mock("../src/modules/notifications/notification.repository");
+jest.mock("../src/modules/notifications/notification.email", () => ({
+  enqueueApprovalRequiredEmails: jest.fn(),
+  enqueueRequestCompletedEmail: jest.fn(),
+  enqueueRequestRejectedEmail: jest.fn(),
+  enqueueChangesRequestedEmail: jest.fn(),
+}));
+
+import {
+  enqueueApprovalRequiredEmails,
+  enqueueChangesRequestedEmail,
+  enqueueRequestCompletedEmail,
+  enqueueRequestRejectedEmail,
+} from "../src/modules/notifications/notification.email";
 
 describe("notification service", () => {
   const organisationId = "550e8400-e29b-41d4-a716-446655440000";
@@ -28,8 +41,14 @@ describe("notification service", () => {
   const approverRoleId = "44444444-4444-4444-8444-444444444444";
   const stepId = "33333333-3333-4333-8333-333333333333";
 
+  const requesterEmail = "requester@example.com";
+
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(enqueueApprovalRequiredEmails).mockResolvedValue(undefined);
+    jest.mocked(enqueueRequestCompletedEmail).mockResolvedValue(undefined);
+    jest.mocked(enqueueRequestRejectedEmail).mockResolvedValue(undefined);
+    jest.mocked(enqueueChangesRequestedEmail).mockResolvedValue(undefined);
     jest
       .mocked(notificationRepository.createNotificationRecord)
       .mockResolvedValue({
@@ -47,11 +66,24 @@ describe("notification service", () => {
         createdAt: new Date(),
       });
     jest
-      .mocked(notificationRepository.findActiveRecipientIdsByRole)
-      .mockResolvedValue([approverUserId]);
+      .mocked(notificationRepository.findActiveRecipientsByRole)
+      .mockResolvedValue([
+        {
+          userId: approverUserId,
+          email: "approver@example.com",
+          firstName: "Alex",
+          lastName: "Approver",
+        },
+      ]);
     jest
       .mocked(notificationRepository.createManyNotificationRecords)
       .mockResolvedValue({ count: 1 });
+    jest.mocked(notificationRepository.findNotificationRecipientById).mockResolvedValue({
+      userId: requesterId,
+      email: requesterEmail,
+      firstName: "Sam",
+      lastName: "Requester",
+    });
   });
 
   it("records approval required notifications for each active member with the approver role", async () => {
@@ -63,11 +95,12 @@ describe("notification service", () => {
       approverRoleId,
       stepName: "Manager Approval",
       requestTitle: "New laptop request",
+      workflowName: "Equipment Request",
     });
 
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
 
-    expect(notificationRepository.findActiveRecipientIdsByRole).toHaveBeenCalledWith(
+    expect(notificationRepository.findActiveRecipientsByRole).toHaveBeenCalledWith(
       organisationId,
       approverRoleId,
     );
@@ -83,6 +116,19 @@ describe("notification service", () => {
         actionUrl: `/approvals/${requestId}`,
       }),
     ]);
+    expect(enqueueApprovalRequiredEmails).toHaveBeenCalledWith({
+      recipients: [
+        {
+          userId: approverUserId,
+          email: "approver@example.com",
+          firstName: "Alex",
+          lastName: "Approver",
+        },
+      ],
+      requestTitle: "New laptop request",
+      workflowName: "Equipment Request",
+      actionUrl: `/approvals/${requestId}`,
+    });
   });
 
   it("records request completed notifications for the requester", async () => {
@@ -91,9 +137,10 @@ describe("notification service", () => {
       workflowRequestId: requestId,
       workflowTemplateId: templateId,
       requesterId,
+      requestTitle: "New laptop request",
     });
 
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -104,6 +151,16 @@ describe("notification service", () => {
         actionUrl: `/requests/${requestId}`,
       }),
     );
+    expect(enqueueRequestCompletedEmail).toHaveBeenCalledWith({
+      recipient: {
+        userId: requesterId,
+        email: requesterEmail,
+        firstName: "Sam",
+        lastName: "Requester",
+      },
+      requestTitle: "New laptop request",
+      actionUrl: `/requests/${requestId}`,
+    });
   });
 
   it("records rejected notifications with the comment as message", async () => {
@@ -113,9 +170,10 @@ describe("notification service", () => {
       workflowTemplateId: templateId,
       requesterId,
       comment: "Budget not approved.",
+      requestTitle: "New laptop request",
     });
 
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -123,6 +181,17 @@ describe("notification service", () => {
         message: "Budget not approved.",
       }),
     );
+    expect(enqueueRequestRejectedEmail).toHaveBeenCalledWith({
+      recipient: {
+        userId: requesterId,
+        email: requesterEmail,
+        firstName: "Sam",
+        lastName: "Requester",
+      },
+      requestTitle: "New laptop request",
+      comment: "Budget not approved.",
+      actionUrl: `/requests/${requestId}`,
+    });
   });
 
   it("records changes requested notifications for the requester", async () => {
@@ -132,9 +201,10 @@ describe("notification service", () => {
       workflowTemplateId: templateId,
       requesterId,
       comment: "Please add a cost breakdown.",
+      requestTitle: "New laptop request",
     });
 
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(notificationRepository.createNotificationRecord).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,6 +212,17 @@ describe("notification service", () => {
         recipientId: requesterId,
       }),
     );
+    expect(enqueueChangesRequestedEmail).toHaveBeenCalledWith({
+      recipient: {
+        userId: requesterId,
+        email: requesterEmail,
+        firstName: "Sam",
+        lastName: "Requester",
+      },
+      requestTitle: "New laptop request",
+      comment: "Please add a cost breakdown.",
+      actionUrl: `/requests/${requestId}`,
+    });
   });
 
   it("records step approved notifications for the requester", async () => {

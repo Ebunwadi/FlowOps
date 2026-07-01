@@ -16,4 +16,5 @@ export type DbClient = Pick<
   | "approval"
   | "comment"
   | "notification"
+  | "user"
 >;

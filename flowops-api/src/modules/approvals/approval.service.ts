@@ -217,6 +217,7 @@ export async function approveWorkflowRequest(
       approverRoleId: nextStep.approverRoleId,
       stepName: nextStep.name,
       requestTitle: request.title,
+      workflowName: request.workflowTemplate.name,
     });
     notifyRequesterOfApprovedStep({
       organisationId,
@@ -225,6 +226,7 @@ export async function approveWorkflowRequest(
       requesterId: request.requesterId,
       approvedStepName: currentStep.name,
       nextStepName: nextStep.name,
+      requestTitle: request.title,
     });
   } else {
     notifyRequesterOfCompletedRequest({
@@ -232,6 +234,7 @@ export async function approveWorkflowRequest(
       workflowRequestId: request.id,
       workflowTemplateId: request.workflowTemplateId,
       requesterId: request.requesterId,
+      requestTitle: request.title,
     });
   }
 
@@ -300,6 +303,7 @@ export async function rejectWorkflowRequest(
     workflowTemplateId: request.workflowTemplateId,
     requesterId: request.requesterId,
     comment: input.comment,
+    requestTitle: request.title,
   });
 
   return toSubmittedWorkflowRequestResponse(updatedRequest);
@@ -367,6 +371,7 @@ export async function requestChangesWorkflowRequest(
     workflowTemplateId: request.workflowTemplateId,
     requesterId: request.requesterId,
     comment: input.comment,
+    requestTitle: request.title,
   });
 
   return toSubmittedWorkflowRequestResponse(updatedRequest);
