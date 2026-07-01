@@ -3,6 +3,7 @@ import { Worker, type Job } from "bullmq";
 import { LogOrigin } from "../../common/logging/logFormat";
 import { getRedisConnectionOptions } from "../../config/redis";
 import { logger } from "../../config/logger";
+import { sendTemplatedEmail } from "../../modules/email/email.service";
 import {
   EMAIL_JOB_NAMES,
   EMAIL_QUEUE_NAME,
@@ -24,7 +25,12 @@ export async function processSendEmailJob(
     `[Worker] Processing email job "${job.name}" for ${job.data.to}`,
   );
 
-  // Email delivery is implemented in the email service (Sprint 7 Issue 5).
+  await sendTemplatedEmail({
+    to: job.data.to,
+    template: job.data.template,
+    data: job.data.data,
+    subject: job.data.subject,
+  });
 }
 
 export function createEmailWorker(): Worker<SendEmailJobPayload> {
