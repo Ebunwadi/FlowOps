@@ -10,6 +10,7 @@ import { AvailableWorkflowsPage } from "@/pages/available-workflows-page";
 import { DashboardPage } from "@/pages/dashboard-page";
 import { HomePage } from "@/pages/home-page";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { NotificationsPage } from "@/pages/notifications-page";
 import { OrganisationMembersPage } from "@/pages/organisation-members-page";
 import { OrganisationSetupPage } from "@/pages/organisation-setup-page";
 import { EditDraftRequestPage } from "@/pages/edit-draft-request-page";
@@ -88,6 +89,10 @@ export const router = createBrowserRouter([
               {
                 path: "requests/:id/edit",
                 element: <EditDraftRequestPage />,
+              },
+              {
+                path: "notifications",
+                element: <NotificationsPage />,
               },
               {
                 path: "settings",
