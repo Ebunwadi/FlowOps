@@ -31,6 +31,18 @@ export async function processSendEmailJob(
     data: job.data.data,
     subject: job.data.subject,
   });
+
+  logger.info(
+    {
+      origin: LogOrigin.API,
+      event: "queue.email.delivered",
+      jobId: job.id,
+      jobName: job.name,
+      to: job.data.to,
+      template: job.data.template,
+    },
+    `[Worker] Email job "${job.name}" delivered to ${job.data.to}`,
+  );
 }
 
 export function createEmailWorker(): Worker<SendEmailJobPayload> {

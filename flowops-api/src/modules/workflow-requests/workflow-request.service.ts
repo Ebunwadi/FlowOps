@@ -184,6 +184,7 @@ export async function submitWorkflowRequest(
     approverRoleId: firstStep.approverRoleId,
     stepName: firstStep.name,
     requestTitle: request.title,
+    workflowName: template.name,
   });
 
   return toSubmittedWorkflowRequestResponse(request);
@@ -591,6 +592,7 @@ export async function submitDraftWorkflowRequest(
     approverRoleId: firstStep.approverRoleId,
     stepName: firstStep.name,
     requestTitle: request.title,
+    workflowName: template.name,
   });
 
   return toSubmittedWorkflowRequestResponse(request);
@@ -676,6 +678,7 @@ async function resubmitChangesRequestedWorkflowRequest(
     approverRoleId: resubmitStep.approverRoleId,
     stepName: resubmitStep.name,
     requestTitle: request.title,
+    workflowName: template.name,
   });
 
   return toSubmittedWorkflowRequestResponse(request);

@@ -215,7 +215,16 @@ describe("approval service", () => {
         },
         prisma,
       );
-      expect(notifyApproversOfNextStep).toHaveBeenCalled();
+      expect(notifyApproversOfNextStep).toHaveBeenCalledWith({
+        organisationId,
+        workflowRequestId: requestId,
+        workflowTemplateId: templateId,
+        stepId: stepTwoId,
+        approverRoleId: otherRoleId,
+        stepName: "IT Approval",
+        requestTitle: "New laptop request",
+        workflowName: "Equipment Request",
+      });
       expect(notifyRequesterOfApprovedStep).toHaveBeenCalled();
       expect(notifyRequesterOfCompletedRequest).not.toHaveBeenCalled();
       expect(result.status).toBe("PENDING_APPROVAL");
@@ -270,6 +279,7 @@ describe("approval service", () => {
         workflowRequestId: requestId,
         workflowTemplateId: templateId,
         requesterId,
+        requestTitle: "New laptop request",
       });
       expect(recordApprovalAuditEvent).toHaveBeenCalled();
       expect(result.status).toBe("APPROVED");
@@ -430,6 +440,7 @@ describe("approval service", () => {
         workflowTemplateId: templateId,
         requesterId,
         comment: "Rejected because the business reason is unclear.",
+        requestTitle: "New laptop request",
       });
       expect(result.status).toBe("REJECTED");
       expect(result.currentStep).toBeNull();
@@ -537,6 +548,7 @@ describe("approval service", () => {
         workflowTemplateId: templateId,
         requesterId,
         comment: "Please add a cost breakdown.",
+        requestTitle: "New laptop request",
       });
       expect(result.status).toBe("CHANGES_REQUESTED");
       expect(result.currentStep?.id).toBe(stepOneId);

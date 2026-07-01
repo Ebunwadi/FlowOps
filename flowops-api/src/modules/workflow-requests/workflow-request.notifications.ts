@@ -9,6 +9,7 @@ interface ApproverNotificationInput {
   approverRoleId: string;
   stepName: string;
   requestTitle?: string | null;
+  workflowName?: string | null;
 }
 
 /** Persists a notification record; email delivery is deferred to a later sprint. */

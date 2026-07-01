@@ -15,6 +15,7 @@ interface ApprovalNotificationInput {
   approverRoleId: string;
   stepName: string;
   requestTitle?: string | null;
+  workflowName?: string | null;
 }
 
 interface RequesterNotificationInput {
@@ -22,6 +23,7 @@ interface RequesterNotificationInput {
   workflowRequestId: string;
   workflowTemplateId: string;
   requesterId: string;
+  requestTitle?: string | null;
 }
 
 interface RequesterRejectionNotificationInput extends RequesterNotificationInput {
@@ -33,7 +35,7 @@ interface RequesterStepApprovedNotificationInput extends RequesterNotificationIn
   nextStepName: string;
 }
 
-/** Persists a notification record; email delivery is deferred to a later sprint. */
+/** Notifies and queues email for users assigned to the next approval step. */
 export function notifyApproversOfNextStep(input: ApprovalNotificationInput): void {
   recordApprovalRequiredNotification(input);
 

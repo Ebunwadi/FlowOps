@@ -211,11 +211,18 @@ export async function markAllNotificationsAsReadForUser(
   });
 }
 
-export async function findActiveRecipientIdsByRole(
+export async function findActiveRecipientsByRole(
   organisationId: string,
   roleId: string,
   db: DbClient = prisma,
-): Promise<string[]> {
+): Promise<
+  Array<{
+    userId: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  }>
+> {
   const members = await db.organisationMember.findMany({
     where: {
       organisationId,
@@ -223,9 +230,61 @@ export async function findActiveRecipientIdsByRole(
       status: MembershipStatus.ACTIVE,
     },
     select: {
-      userId: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
     },
   });
 
-  return members.map((member) => member.userId);
+  return members.map((member) => ({
+    userId: member.user.id,
+    email: member.user.email,
+    firstName: member.user.firstName,
+    lastName: member.user.lastName,
+  }));
+}
+
+export async function findActiveRecipientIdsByRole(
+  organisationId: string,
+  roleId: string,
+  db: DbClient = prisma,
+): Promise<string[]> {
+  const recipients = await findActiveRecipientsByRole(organisationId, roleId, db);
+  return recipients.map((recipient) => recipient.userId);
+}
+
+export async function findNotificationRecipientById(
+  userId: string,
+  db: DbClient = prisma,
+): Promise<{
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+} | null> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+    },
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    userId: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  };
 }

@@ -13,13 +13,20 @@ import {
   countUnreadNotificationsForUser,
   createManyNotificationRecords,
   createNotificationRecord,
-  findActiveRecipientIdsByRole,
+  findActiveRecipientsByRole,
+  findNotificationRecipientById,
   findNotificationsForUser,
   markAllNotificationsAsReadForUser,
   markNotificationAsRead,
   type CreateNotificationRecordInput,
 } from "./notification.repository";
 import type { ListNotificationsQuery } from "./notification.validation";
+import {
+  enqueueApprovalRequiredEmails,
+  enqueueChangesRequestedEmail,
+  enqueueRequestCompletedEmail,
+  enqueueRequestRejectedEmail,
+} from "./notification.email";
 
 export const NOTIFICATION_TYPES = {
   APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
@@ -161,10 +168,12 @@ interface RoleApprovalNotificationContext extends WorkflowRequestNotificationCon
   approverRoleId: string;
   stepName: string;
   requestTitle?: string | null;
+  workflowName?: string | null;
 }
 
 interface RequesterNotificationContext extends WorkflowRequestNotificationContext {
   requesterId: string;
+  requestTitle?: string | null;
 }
 
 interface RequesterCommentNotificationContext extends RequesterNotificationContext {
@@ -179,12 +188,12 @@ interface RequesterStepApprovedContext extends RequesterNotificationContext {
 async function recordApprovalRequiredNotificationsForRole(
   input: RoleApprovalNotificationContext,
 ): Promise<void> {
-  const recipientIds = await findActiveRecipientIdsByRole(
+  const recipients = await findActiveRecipientsByRole(
     input.organisationId,
     input.approverRoleId,
   );
 
-  if (recipientIds.length === 0) {
+  if (recipients.length === 0) {
     logger.warn(
       {
         origin: "api",
@@ -201,19 +210,27 @@ async function recordApprovalRequiredNotificationsForRole(
   const requestLabel = input.requestTitle?.trim() || "A workflow request";
   const title = "Approval required";
   const message = `${requestLabel} is waiting for your approval at "${input.stepName}".`;
+  const actionUrl = approvalReviewActionUrl(input.workflowRequestId);
 
   await createManyNotificationRecords(
-    recipientIds.map((recipientId) => ({
+    recipients.map((recipient) => ({
       organisationId: input.organisationId,
-      recipientId,
+      recipientId: recipient.userId,
       type: NOTIFICATION_TYPES.APPROVAL_REQUIRED,
       title,
       message,
       entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
       entityId: input.workflowRequestId,
-      actionUrl: approvalReviewActionUrl(input.workflowRequestId),
+      actionUrl,
     })),
   );
+
+  await enqueueApprovalRequiredEmails({
+    recipients,
+    requestTitle: input.requestTitle,
+    workflowName: input.workflowName,
+    actionUrl,
+  });
 }
 
 export function recordApprovalRequiredNotification(
@@ -249,10 +266,12 @@ export function recordRequestApprovedStepNotification(
   });
 }
 
-export function recordRequestCompletedNotification(
+async function recordRequestCompletedNotificationAsync(
   input: RequesterNotificationContext,
-): void {
-  recordNotification({
+): Promise<void> {
+  const actionUrl = workflowRequestActionUrl(input.workflowRequestId);
+
+  await createNotificationRecord({
     organisationId: input.organisationId,
     recipientId: input.requesterId,
     type: NOTIFICATION_TYPES.REQUEST_COMPLETED,
@@ -260,14 +279,56 @@ export function recordRequestCompletedNotification(
     message: "Your workflow request has been fully approved.",
     entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
     entityId: input.workflowRequestId,
-    actionUrl: workflowRequestActionUrl(input.workflowRequestId),
+    actionUrl,
+  });
+
+  const recipient = await findNotificationRecipientById(input.requesterId);
+
+  if (!recipient) {
+    logger.warn(
+      {
+        origin: "api",
+        event: "notification.requester_not_found",
+        requesterId: input.requesterId,
+        workflowRequestId: input.workflowRequestId,
+      },
+      "[API] Requester not found for completed notification email",
+    );
+    return;
+  }
+
+  await enqueueRequestCompletedEmail({
+    recipient,
+    requestTitle: input.requestTitle,
+    actionUrl,
   });
 }
 
-export function recordRequestRejectedNotification(
-  input: RequesterCommentNotificationContext,
+export function recordRequestCompletedNotification(
+  input: RequesterNotificationContext,
 ): void {
-  recordNotification({
+  void recordRequestCompletedNotificationAsync(input).catch((error) => {
+    logger.error(
+      {
+        origin: "api",
+        event: "notification.record_failed",
+        notificationType: NOTIFICATION_TYPES.REQUEST_COMPLETED,
+        organisationId: input.organisationId,
+        workflowRequestId: input.workflowRequestId,
+        requesterId: input.requesterId,
+        error,
+      },
+      "[API] Failed to persist request completed notification",
+    );
+  });
+}
+
+async function recordRequestRejectedNotificationAsync(
+  input: RequesterCommentNotificationContext,
+): Promise<void> {
+  const actionUrl = workflowRequestActionUrl(input.workflowRequestId);
+
+  await createNotificationRecord({
     organisationId: input.organisationId,
     recipientId: input.requesterId,
     type: NOTIFICATION_TYPES.REQUEST_REJECTED,
@@ -275,14 +336,57 @@ export function recordRequestRejectedNotification(
     message: input.comment,
     entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
     entityId: input.workflowRequestId,
-    actionUrl: workflowRequestActionUrl(input.workflowRequestId),
+    actionUrl,
+  });
+
+  const recipient = await findNotificationRecipientById(input.requesterId);
+
+  if (!recipient) {
+    logger.warn(
+      {
+        origin: "api",
+        event: "notification.requester_not_found",
+        requesterId: input.requesterId,
+        workflowRequestId: input.workflowRequestId,
+      },
+      "[API] Requester not found for rejected notification email",
+    );
+    return;
+  }
+
+  await enqueueRequestRejectedEmail({
+    recipient,
+    requestTitle: input.requestTitle,
+    comment: input.comment,
+    actionUrl,
   });
 }
 
-export function recordChangesRequestedNotification(
+export function recordRequestRejectedNotification(
   input: RequesterCommentNotificationContext,
 ): void {
-  recordNotification({
+  void recordRequestRejectedNotificationAsync(input).catch((error) => {
+    logger.error(
+      {
+        origin: "api",
+        event: "notification.record_failed",
+        notificationType: NOTIFICATION_TYPES.REQUEST_REJECTED,
+        organisationId: input.organisationId,
+        workflowRequestId: input.workflowRequestId,
+        requesterId: input.requesterId,
+        error,
+      },
+      "[API] Failed to persist request rejected notification",
+    );
+  });
+}
+
+async function recordChangesRequestedNotificationAsync(
+  input: RequesterCommentNotificationContext,
+): Promise<void> {
+  const actionUrl = workflowRequestActionUrl(input.workflowRequestId);
+
+  await createNotificationRecord({
     organisationId: input.organisationId,
     recipientId: input.requesterId,
     type: NOTIFICATION_TYPES.CHANGES_REQUESTED,
@@ -290,6 +394,47 @@ export function recordChangesRequestedNotification(
     message: input.comment,
     entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
     entityId: input.workflowRequestId,
-    actionUrl: workflowRequestActionUrl(input.workflowRequestId),
+    actionUrl,
+  });
+
+  const recipient = await findNotificationRecipientById(input.requesterId);
+
+  if (!recipient) {
+    logger.warn(
+      {
+        origin: "api",
+        event: "notification.requester_not_found",
+        requesterId: input.requesterId,
+        workflowRequestId: input.workflowRequestId,
+      },
+      "[API] Requester not found for changes requested notification email",
+    );
+    return;
+  }
+
+  await enqueueChangesRequestedEmail({
+    recipient,
+    requestTitle: input.requestTitle,
+    comment: input.comment,
+    actionUrl,
+  });
+}
+
+export function recordChangesRequestedNotification(
+  input: RequesterCommentNotificationContext,
+): void {
+  void recordChangesRequestedNotificationAsync(input).catch((error) => {
+    logger.error(
+      {
+        origin: "api",
+        event: "notification.record_failed",
+        notificationType: NOTIFICATION_TYPES.CHANGES_REQUESTED,
+        organisationId: input.organisationId,
+        workflowRequestId: input.workflowRequestId,
+        requesterId: input.requesterId,
+        error,
+      },
+      "[API] Failed to persist changes requested notification",
+    );
   });
 }
