@@ -21,6 +21,26 @@ const envSchema = z.object({
   ),
   KEYCLOAK_CLIENT_ID: z.string().min(1).default("flowops-web"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
+  EMAIL_TRANSPORT: z.enum(["console", "smtp"]).default("console"),
+  EMAIL_FROM: z.string().min(1).default("noreply@flowops.dev"),
+  APP_PUBLIC_URL: z.string().url().default("http://localhost:5173"),
+  SMTP_HOST: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional(),
+  ),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.preprocess(
+    (value) => value === "true" || value === true,
+    z.boolean().default(false),
+  ),
+  SMTP_USER: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional(),
+  ),
+  SMTP_PASSWORD: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional(),
+  ),
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -40,4 +60,12 @@ export const env = {
     `${parsedEnv.KEYCLOAK_ISSUER}/protocol/openid-connect/certs`,
   keycloakClientId: parsedEnv.KEYCLOAK_CLIENT_ID,
   redisUrl: parsedEnv.REDIS_URL,
+  emailTransport: parsedEnv.EMAIL_TRANSPORT,
+  emailFrom: parsedEnv.EMAIL_FROM,
+  appPublicUrl: parsedEnv.APP_PUBLIC_URL,
+  smtpHost: parsedEnv.SMTP_HOST,
+  smtpPort: parsedEnv.SMTP_PORT,
+  smtpSecure: parsedEnv.SMTP_SECURE,
+  smtpUser: parsedEnv.SMTP_USER,
+  smtpPassword: parsedEnv.SMTP_PASSWORD,
 };
