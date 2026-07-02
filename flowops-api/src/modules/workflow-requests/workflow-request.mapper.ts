@@ -13,6 +13,10 @@ import {
   toWorkflowRequestCommentResponse,
   type WorkflowRequestCommentResponse,
 } from "../comments/comment.mapper";
+import {
+  toAttachmentResponse,
+  type AttachmentResponse,
+} from "../attachments/attachment.mapper";
 
 export interface WorkflowRequestStepSummary {
   id: string;
@@ -145,7 +149,7 @@ export interface WorkflowRequestDetailResponse {
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
-  attachments: never[];
+  attachments: AttachmentResponse[];
   approvalHistory: WorkflowRequestApprovalHistoryItem[];
   timeline: WorkflowRequestTimelineItem[];
   comments: WorkflowRequestCommentResponse[];
@@ -216,6 +220,22 @@ interface WorkflowRequestDetailRecord {
       email: string;
     };
   }>;
+  attachments: Array<{
+    id: string;
+    workflowRequestId: string;
+    originalFileName: string;
+    mimeType: string;
+    fileSize: number;
+    fileExtension: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    uploadedBy: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+    };
+  }>;
 }
 
 export function toWorkflowRequestDetailResponse(
@@ -269,7 +289,7 @@ export function toWorkflowRequestDetailResponse(
     cancelledAt: request.cancelledAt ? request.cancelledAt.toISOString() : null,
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString(),
-    attachments: [],
+    attachments: request.attachments.map(toAttachmentResponse),
     approvalHistory: request.approvals.map(toWorkflowRequestApprovalHistoryItem),
     timeline: buildWorkflowRequestTimeline({
       requestStatus: request.status,

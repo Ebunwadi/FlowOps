@@ -170,6 +170,7 @@ describe("workflow request service", () => {
       ],
       approvals: [],
       comments: [],
+      attachments: [],
     };
 
     beforeEach(() => {
@@ -187,6 +188,7 @@ describe("workflow request service", () => {
 
       expect(result.id).toBe(requestId);
       expect(result.currentStep?.id).toBe(stepId);
+      expect(result.attachments).toEqual([]);
       expect(result.values).toEqual([
         {
           workflowFieldId: itemFieldId,
@@ -197,6 +199,90 @@ describe("workflow request service", () => {
         },
       ]);
       expect(roleRepository.findPermissionKeysByRoleId).not.toHaveBeenCalled();
+    });
+
+    it("includes attachment metadata ordered by upload date", async () => {
+      const uploadedAt = new Date("2026-07-02T10:00:00.000Z");
+      const secondUploadedAt = new Date("2026-07-02T11:00:00.000Z");
+
+      jest.mocked(workflowRequestRepository.findWorkflowRequestDetail).mockResolvedValue({
+        ...detailRecord,
+        attachments: [
+          {
+            id: "bbbb8888-8888-4888-8888-888888888888",
+            workflowRequestId: requestId,
+            originalFileName: "quote.pdf",
+            mimeType: "application/pdf",
+            fileSize: 2048,
+            fileExtension: "pdf",
+            createdAt: uploadedAt,
+            updatedAt: uploadedAt,
+            uploadedBy: {
+              id: requesterId,
+              firstName: "Ada",
+              lastName: "Lovelace",
+              email: "ada@example.com",
+            },
+          },
+          {
+            id: "cccc7777-7777-4777-8777-777777777777",
+            workflowRequestId: requestId,
+            originalFileName: "notes.txt",
+            mimeType: "text/plain",
+            fileSize: 128,
+            fileExtension: "txt",
+            createdAt: secondUploadedAt,
+            updatedAt: secondUploadedAt,
+            uploadedBy: {
+              id: otherUserId,
+              firstName: "Grace",
+              lastName: "Hopper",
+              email: "grace@example.com",
+            },
+          },
+        ],
+      });
+
+      const result = await getWorkflowRequestDetail(
+        organisationId,
+        { userId: requesterId, roleId: staffRoleId },
+        requestId,
+      );
+
+      expect(result.attachments).toEqual([
+        {
+          id: "bbbb8888-8888-4888-8888-888888888888",
+          workflowRequestId: requestId,
+          originalFileName: "quote.pdf",
+          mimeType: "application/pdf",
+          fileSize: 2048,
+          fileExtension: "pdf",
+          uploadedBy: {
+            id: requesterId,
+            firstName: "Ada",
+            lastName: "Lovelace",
+            email: "ada@example.com",
+          },
+          createdAt: uploadedAt.toISOString(),
+          updatedAt: uploadedAt.toISOString(),
+        },
+        {
+          id: "cccc7777-7777-4777-8777-777777777777",
+          workflowRequestId: requestId,
+          originalFileName: "notes.txt",
+          mimeType: "text/plain",
+          fileSize: 128,
+          fileExtension: "txt",
+          uploadedBy: {
+            id: otherUserId,
+            firstName: "Grace",
+            lastName: "Hopper",
+            email: "grace@example.com",
+          },
+          createdAt: secondUploadedAt.toISOString(),
+          updatedAt: secondUploadedAt.toISOString(),
+        },
+      ]);
     });
 
     it("includes approval history ordered by decision date", async () => {

@@ -6,6 +6,11 @@ import { ensureOrganisationContext } from "../../common/middleware/ensureOrganis
 import { requirePermission } from "../../common/middleware/requirePermission";
 import { validateRequest } from "../../common/middleware/validateRequest";
 import {
+  listWorkflowRequestAttachmentsController,
+  uploadWorkflowRequestAttachmentController,
+} from "../attachments/attachment.controller";
+import { uploadAttachmentFileMiddleware } from "../attachments/attachment.upload.middleware";
+import {
   cancelWorkflowRequestController,
   getWorkflowRequestDetailController,
   listMyWorkflowRequestsController,
@@ -150,6 +155,21 @@ workflowRequestRouter.post(
     body: createWorkflowRequestCommentSchema,
   }),
   createWorkflowRequestCommentController,
+);
+
+workflowRequestRouter.get(
+  "/:id/attachments",
+  ensureOrganisationContext,
+  validateRequest({ params: workflowRequestParamsSchema }),
+  listWorkflowRequestAttachmentsController,
+);
+
+workflowRequestRouter.post(
+  "/:id/attachments",
+  ensureOrganisationContext,
+  validateRequest({ params: workflowRequestParamsSchema }),
+  uploadAttachmentFileMiddleware,
+  uploadWorkflowRequestAttachmentController,
 );
 
 // Access control (requester / view-all / assigned approver) is enforced in the service.
