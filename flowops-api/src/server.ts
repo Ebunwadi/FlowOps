@@ -4,6 +4,7 @@ import { createApp } from "./app";
 import { disconnectDatabase } from "./config/database";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
+import { ensureAttachmentsBucket } from "./config/storage";
 import { LogOrigin } from "./common/logging/logFormat";
 
 const app = createApp();
@@ -19,6 +20,21 @@ server.listen(env.port, () => {
     },
     `[API] FlowOps API listening on port ${env.port} (${env.nodeEnv})`,
   );
+
+  if (env.nodeEnv !== "test") {
+    void ensureAttachmentsBucket().catch((error) => {
+      logger.warn(
+        {
+          origin: LogOrigin.API,
+          event: "storage.bucket_bootstrap_failed",
+          bucket: env.storageBucket,
+          endpoint: env.storageEndpoint,
+          error,
+        },
+        "[API] Could not ensure attachments bucket on startup",
+      );
+    });
+  }
 });
 
 function shutdown(signal: NodeJS.Signals): void {

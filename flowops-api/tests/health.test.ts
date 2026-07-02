@@ -8,12 +8,17 @@ jest.mock("../src/config/database", () => ({
   prisma: {},
 }));
 
+jest.mock("../src/config/storage", () => ({
+  checkStorageConnection: jest.fn().mockResolvedValue(true),
+}));
+
 interface HealthResponse {
   data: {
     database: string;
     environment: string;
     service: string;
     status: string;
+    storage: string;
     timestamp: string;
     uptimeSeconds: number;
   };
@@ -32,6 +37,7 @@ describe("health endpoint", () => {
     expect(body.data.service).toBe("flowops-api");
     expect(body.data.status).toBe("ok");
     expect(body.data.database).toBe("connected");
+    expect(body.data.storage).toBe("connected");
     expect(typeof body.data.timestamp).toBe("string");
     expect(typeof body.data.uptimeSeconds).toBe("number");
   });

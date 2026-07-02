@@ -41,6 +41,16 @@ const envSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().optional(),
   ),
+  STORAGE_PROVIDER: z.enum(["minio", "s3"]).default("minio"),
+  STORAGE_ENDPOINT: z.string().url().default("http://localhost:9000"),
+  STORAGE_ACCESS_KEY: z.string().min(1).default("minioadmin"),
+  STORAGE_SECRET_KEY: z.string().min(1).default("minioadmin"),
+  STORAGE_BUCKET: z.string().min(1).default("flowops-attachments"),
+  STORAGE_REGION: z.string().min(1).default("us-east-1"),
+  STORAGE_FORCE_PATH_STYLE: z.preprocess(
+    (value) => value === "true" || value === true,
+    z.boolean().default(true),
+  ),
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -68,4 +78,11 @@ export const env = {
   smtpSecure: parsedEnv.SMTP_SECURE,
   smtpUser: parsedEnv.SMTP_USER,
   smtpPassword: parsedEnv.SMTP_PASSWORD,
+  storageProvider: parsedEnv.STORAGE_PROVIDER,
+  storageEndpoint: parsedEnv.STORAGE_ENDPOINT,
+  storageAccessKey: parsedEnv.STORAGE_ACCESS_KEY,
+  storageSecretKey: parsedEnv.STORAGE_SECRET_KEY,
+  storageBucket: parsedEnv.STORAGE_BUCKET,
+  storageRegion: parsedEnv.STORAGE_REGION,
+  storageForcePathStyle: parsedEnv.STORAGE_FORCE_PATH_STYLE,
 };
