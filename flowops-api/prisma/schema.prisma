@@ -24,6 +24,7 @@ model User {
   approvals               Approval[]
   comments                Comment[]
   notifications           Notification[] @relation("NotificationRecipient")
+  uploadedAttachments     Attachment[]
 
   @@map("users")
 }
@@ -43,6 +44,7 @@ model Organisation {
   workflowTemplates WorkflowTemplate[]
   workflowRequests  WorkflowRequest[]
   notifications     Notification[]
+  attachments       Attachment[]
 
   @@index([createdById])
   @@map("organisations")
@@ -256,6 +258,7 @@ model WorkflowRequest {
   values           WorkflowRequestValue[]
   approvals        Approval[]
   comments         Comment[]
+  attachments      Attachment[]
 
   @@index([organisationId])
   @@index([workflowTemplateId])
@@ -319,6 +322,32 @@ model Comment {
   @@index([workflowRequestId])
   @@index([authorId])
   @@map("comments")
+}
+
+/// File metadata for documents uploaded to a workflow request. Binary content lives in object storage.
+model Attachment {
+  id                String   @id @default(uuid())
+  organisationId    String
+  workflowRequestId String
+  uploadedById      String
+  originalFileName  String
+  storedFileName    String
+  storageKey        String
+  bucketName        String
+  mimeType          String
+  fileSize          Int
+  fileExtension     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organisation    Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  workflowRequest WorkflowRequest @relation(fields: [workflowRequestId], references: [id], onDelete: Cascade)
+  uploadedBy      User            @relation(fields: [uploadedById], references: [id])
+
+  @@index([organisationId])
+  @@index([workflowRequestId])
+  @@index([uploadedById])
+  @@map("attachments")
 }
 
 /// In-app notification delivered to a single organisation member.
