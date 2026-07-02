@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { approvalRouter } from "../modules/approvals/approval.routes";
+import { attachmentRouter } from "../modules/attachments/attachment.routes";
 import { authRouter } from "../modules/auth/auth.routes";
 import { clientLogsRouter } from "../modules/client-logs/client-logs.routes";
 import { healthRouter } from "../modules/health/health.routes";
@@ -17,5 +18,6 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/organisations", organisationRouter);
 apiRouter.use("/workflow-templates", workflowTemplateRouter);
 apiRouter.use("/workflow-requests", workflowRequestRouter);
+apiRouter.use("/attachments", attachmentRouter);
 apiRouter.use("/approvals", approvalRouter);
 apiRouter.use("/notifications", notificationRouter);

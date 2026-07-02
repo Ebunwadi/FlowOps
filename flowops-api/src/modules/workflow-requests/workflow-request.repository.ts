@@ -344,6 +344,27 @@ const requestDetailSelect = {
       },
     },
   },
+  attachments: {
+    orderBy: { createdAt: "asc" as const },
+    select: {
+      id: true,
+      workflowRequestId: true,
+      originalFileName: true,
+      mimeType: true,
+      fileSize: true,
+      fileExtension: true,
+      createdAt: true,
+      updatedAt: true,
+      uploadedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  },
 } as const;
 
 export async function findWorkflowRequestDetail(
