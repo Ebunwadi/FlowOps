@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
+import { getOrganisationSettings } from "@/api/organisation-settings";
 import { useOrganisation } from "@/auth/use-organisation";
 import { usePermissions } from "@/auth/use-permissions";
 import { WorkflowTemplatesTable } from "@/components/workflows/workflow-templates-table";
@@ -23,6 +25,15 @@ export function WorkflowsPage() {
   const canDeactivate = hasPermission("workflows:deactivate");
   const canArchive = hasPermission("workflows:delete");
 
+  const settingsQuery = useQuery({
+    queryKey: ["organisation-settings", currentOrganisation?.id],
+    queryFn: getOrganisationSettings,
+    enabled: Boolean(currentOrganisation?.id) && canCreate,
+  });
+
+  const aiEnabled = settingsQuery.data?.allowAiFeatures ?? true;
+  const showAiGenerate = canCreate && aiEnabled;
+
   const permissions = {
     canView,
     canCreate,
@@ -45,14 +56,11 @@ export function WorkflowsPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button
-            disabled
-            title="AI-assisted workflow generation coming soon"
-            type="button"
-            variant="outline"
-          >
-            Generate with AI
-          </Button>
+          {showAiGenerate ? (
+            <Button asChild type="button" variant="outline">
+              <Link to="/workflows/ai-generate">Generate with AI</Link>
+            </Button>
+          ) : null}
           {canCreate ? (
             <Button asChild type="button">
               <Link to="/workflows/new">Create workflow</Link>

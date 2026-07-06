@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { aiRouter } from "../modules/ai/ai.routes";
 import { approvalRouter } from "../modules/approvals/approval.routes";
 import { attachmentRouter } from "../modules/attachments/attachment.routes";
 import { authRouter } from "../modules/auth/auth.routes";
@@ -22,4 +23,5 @@ apiRouter.use("/workflow-templates", workflowTemplateRouter);
 apiRouter.use("/workflow-requests", workflowRequestRouter);
 apiRouter.use("/attachments", attachmentRouter);
 apiRouter.use("/approvals", approvalRouter);
+apiRouter.use("/ai", aiRouter);
 apiRouter.use("/notifications", notificationRouter);

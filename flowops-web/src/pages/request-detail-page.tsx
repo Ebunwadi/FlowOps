@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/auth/use-auth";
 import { useOrganisation } from "@/auth/use-organisation";
 import { usePermissions } from "@/auth/use-permissions";
+import { RequestAiSummary } from "@/components/requests/request-ai-summary";
 import { RequestApprovalHistory } from "@/components/requests/request-approval-history";
 import { RequestAttachments } from "@/components/requests/request-attachments";
 import { RequestComments } from "@/components/requests/request-comments";
@@ -307,6 +308,8 @@ export function RequestDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <RequestAiSummary workflowRequestId={request.id} />
 
       <Card className="border-border/80 shadow-sm">
         <CardHeader>

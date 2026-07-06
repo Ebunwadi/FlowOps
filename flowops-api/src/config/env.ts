@@ -56,6 +56,13 @@ const envSchema = z.object({
     },
     z.boolean().default(true),
   ),
+  AI_PROVIDER: z.enum(["mock", "openai"]).default("mock"),
+  AI_API_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  AI_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  AI_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -88,6 +95,10 @@ export interface FlowOpsEnv {
   storageBucket: string;
   storageRegion: string;
   storageForcePathStyle: boolean;
+  aiProvider: "mock" | "openai";
+  aiApiKey: string | undefined;
+  aiModel: string;
+  aiBaseUrl: string;
 }
 
 export const env: FlowOpsEnv = {
@@ -120,4 +131,8 @@ export const env: FlowOpsEnv = {
   storageBucket: parsedEnv.STORAGE_BUCKET,
   storageRegion: parsedEnv.STORAGE_REGION,
   storageForcePathStyle: parsedEnv.STORAGE_FORCE_PATH_STYLE,
+  aiProvider: parsedEnv.AI_PROVIDER,
+  aiApiKey: parsedEnv.AI_API_KEY,
+  aiModel: parsedEnv.AI_MODEL,
+  aiBaseUrl: parsedEnv.AI_BASE_URL,
 };
