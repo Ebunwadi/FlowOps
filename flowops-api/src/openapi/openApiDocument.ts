@@ -216,6 +216,105 @@ export const openApiDocument = {
         }
       }
     },
+    "/workflow-requests/{id}/attachments": {
+      get: {
+        summary: "List workflow request attachments",
+        tags: ["Attachments"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/WorkflowRequestId" }],
+        responses: {
+          "200": {
+            description:
+              "Returns attachment metadata when the caller can access the workflow request."
+          },
+          "403": {
+            description: "Caller cannot access this workflow request."
+          },
+          "404": {
+            description: "Workflow request not found."
+          }
+        }
+      },
+      post: {
+        summary: "Upload workflow request attachment",
+        tags: ["Attachments"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/WorkflowRequestId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["file"],
+                properties: {
+                  file: {
+                    type: "string",
+                    format: "binary",
+                    description:
+                      "PDF, PNG, JPG, DOCX, XLSX, CSV, or TXT up to 10MB"
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "201": {
+            description: "Attachment uploaded successfully."
+          },
+          "400": {
+            description: "Invalid or unsupported file."
+          },
+          "403": {
+            description: "Caller cannot upload to this workflow request."
+          },
+          "404": {
+            description: "Workflow request not found."
+          }
+        }
+      }
+    },
+    "/attachments/{id}/download": {
+      get: {
+        summary: "Download attachment file",
+        tags: ["Attachments"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/AttachmentId" }],
+        responses: {
+          "200": {
+            description:
+              "Streams the file when the caller can access the linked workflow request."
+          },
+          "403": {
+            description: "Caller cannot download this attachment."
+          },
+          "404": {
+            description: "Attachment not found."
+          }
+        }
+      }
+    },
+    "/attachments/{id}": {
+      delete: {
+        summary: "Delete attachment",
+        tags: ["Attachments"],
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/AttachmentId" }],
+        responses: {
+          "200": {
+            description:
+              "Attachment deleted from object storage and the database."
+          },
+          "403": {
+            description: "Caller cannot delete this attachment."
+          },
+          "404": {
+            description: "Attachment not found."
+          }
+        }
+      }
+    },
   },
   components: {
     securitySchemes: {
@@ -241,6 +340,26 @@ export const openApiDocument = {
         in: "path",
         required: true,
         description: "Organisation membership UUID",
+        schema: {
+          type: "string",
+          format: "uuid"
+        }
+      },
+      WorkflowRequestId: {
+        name: "id",
+        in: "path",
+        required: true,
+        description: "Workflow request UUID",
+        schema: {
+          type: "string",
+          format: "uuid"
+        }
+      },
+      AttachmentId: {
+        name: "id",
+        in: "path",
+        required: true,
+        description: "Attachment UUID",
         schema: {
           type: "string",
           format: "uuid"

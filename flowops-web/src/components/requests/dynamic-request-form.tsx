@@ -251,7 +251,8 @@ export function DynamicRequestForm({
           <h2 className="text-sm font-semibold text-foreground">Attachments</h2>
           <div className="rounded-md border border-dashed bg-muted/40 px-4 py-6 text-center">
             <p className="text-sm text-muted-foreground">
-              File attachments will be available in a later release.
+              After you submit this request, you can add supporting documents
+              from the request detail page.
             </p>
           </div>
         </CardContent>
@@ -459,7 +460,7 @@ function renderFieldControl({
         <Input
           disabled
           id={inputId}
-          placeholder="File uploads coming in a later release"
+          placeholder="Add supporting documents after submitting the request"
           type="text"
         />
       );

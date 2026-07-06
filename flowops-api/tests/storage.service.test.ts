@@ -21,6 +21,7 @@ jest.mock("@aws-sdk/client-s3", () => ({
 }));
 
 jest.mock("../src/config/storage", () => ({
+  ATTACHMENTS_BUCKET_NAME: "flowops-attachments",
   getStorageClient: jest.fn(() => ({ send: sendMock })),
 }));
 

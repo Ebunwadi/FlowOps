@@ -7,9 +7,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Readable } from "node:stream";
 
 import { LogOrigin } from "../../common/logging/logFormat";
-import { env } from "../../config/env";
 import { logger } from "../../config/logger";
-import { getStorageClient } from "../../config/storage";
+import { ATTACHMENTS_BUCKET_NAME, getStorageClient } from "../../config/storage";
 import {
   StorageObjectNotFoundError,
   StorageOperationError,
@@ -50,7 +49,7 @@ export async function uploadFile(input: UploadFileInput): Promise<void> {
   try {
     await getStorageClient().send(
       new PutObjectCommand({
-        Bucket: env.storageBucket,
+        Bucket: ATTACHMENTS_BUCKET_NAME,
         Key: input.storageKey,
         Body: input.buffer,
         ContentType: input.mimeType,
@@ -63,7 +62,7 @@ export async function uploadFile(input: UploadFileInput): Promise<void> {
         origin: LogOrigin.API,
         event: "storage.upload_failed",
         storageKey: input.storageKey,
-        bucket: env.storageBucket,
+        bucket: ATTACHMENTS_BUCKET_NAME,
         error,
       },
       `[API] Failed to upload file to object storage`,
@@ -77,7 +76,7 @@ export async function downloadFile(storageKey: string): Promise<Readable> {
   try {
     const response = await getStorageClient().send(
       new GetObjectCommand({
-        Bucket: env.storageBucket,
+        Bucket: ATTACHMENTS_BUCKET_NAME,
         Key: storageKey,
       }),
     );
@@ -101,7 +100,7 @@ export async function downloadFile(storageKey: string): Promise<Readable> {
         origin: LogOrigin.API,
         event: "storage.download_failed",
         storageKey,
-        bucket: env.storageBucket,
+        bucket: ATTACHMENTS_BUCKET_NAME,
         error,
       },
       `[API] Failed to download file from object storage`,
@@ -115,7 +114,7 @@ export async function deleteFile(storageKey: string): Promise<void> {
   try {
     await getStorageClient().send(
       new DeleteObjectCommand({
-        Bucket: env.storageBucket,
+        Bucket: ATTACHMENTS_BUCKET_NAME,
         Key: storageKey,
       }),
     );
@@ -125,7 +124,7 @@ export async function deleteFile(storageKey: string): Promise<void> {
         origin: LogOrigin.API,
         event: "storage.delete_failed",
         storageKey,
-        bucket: env.storageBucket,
+        bucket: ATTACHMENTS_BUCKET_NAME,
         error,
       },
       `[API] Failed to delete file from object storage`,
@@ -144,7 +143,7 @@ export async function generateSignedDownloadUrl(
 
   try {
     const command = new GetObjectCommand({
-      Bucket: env.storageBucket,
+      Bucket: ATTACHMENTS_BUCKET_NAME,
       Key: storageKey,
     });
 
@@ -157,7 +156,7 @@ export async function generateSignedDownloadUrl(
         origin: LogOrigin.API,
         event: "storage.signed_url_failed",
         storageKey,
-        bucket: env.storageBucket,
+        bucket: ATTACHMENTS_BUCKET_NAME,
         error,
       },
       `[API] Failed to generate signed download URL`,
