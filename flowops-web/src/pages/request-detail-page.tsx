@@ -10,6 +10,7 @@ import { useAuth } from "@/auth/use-auth";
 import { useOrganisation } from "@/auth/use-organisation";
 import { usePermissions } from "@/auth/use-permissions";
 import { RequestApprovalHistory } from "@/components/requests/request-approval-history";
+import { RequestAttachments } from "@/components/requests/request-attachments";
 import { RequestComments } from "@/components/requests/request-comments";
 import { RequestTimeline } from "@/components/requests/request-timeline";
 import { WorkflowRequestStatusBadge } from "@/components/requests/workflow-request-status-badge";
@@ -32,6 +33,27 @@ import {
   type WorkflowRequestDetailResponse,
   type WorkflowRequestValueDetail,
 } from "@/types/workflow-request";
+
+function canAccessRequestAttachments(
+  request: WorkflowRequestDetailResponse,
+  userId: string | undefined,
+  roleId: string | undefined,
+  hasViewAll: boolean,
+): boolean {
+  return canCommentOnRequest(request, userId, roleId, hasViewAll);
+}
+
+function canDeleteRequestAttachment(
+  attachment: WorkflowRequestDetailResponse["attachments"][number],
+  userId: string | undefined,
+  hasViewAll: boolean,
+): boolean {
+  if (!userId) {
+    return false;
+  }
+
+  return attachment.uploadedBy.id === userId || hasViewAll;
+}
 
 function canCommentOnRequest(
   request: WorkflowRequestDetailResponse,
@@ -143,6 +165,12 @@ export function RequestDetailPage() {
     hasPermission("requests:cancel") &&
     isCancellableStatus(request.status);
   const canComment = canCommentOnRequest(
+    request,
+    profile?.id,
+    membershipAccess?.role.id,
+    hasPermission("requests:view-all"),
+  );
+  const canUploadAttachments = canAccessRequestAttachments(
     request,
     profile?.id,
     membershipAccess?.role.id,
@@ -301,6 +329,29 @@ export function RequestDetailPage() {
         </CardHeader>
         <CardContent>
           <RequestApprovalHistory items={request.approvalHistory} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Attachments</CardTitle>
+          <CardDescription>
+            Supporting documents uploaded for this request.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RequestAttachments
+            attachments={request.attachments}
+            canDeleteAttachment={(attachment) =>
+              canDeleteRequestAttachment(
+                attachment,
+                profile?.id,
+                hasPermission("requests:view-all"),
+              )
+            }
+            canUpload={canUploadAttachments}
+            workflowRequestId={request.id}
+          />
         </CardContent>
       </Card>
 

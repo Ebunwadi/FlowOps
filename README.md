@@ -8,7 +8,7 @@ FlowOps is a full-stack enterprise workflow automation and approval platform for
 | --- | --- |
 | Backend | Express.js, TypeScript, Prisma, PostgreSQL, Pino, Zod |
 | Frontend | React, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS |
-| Infrastructure | Docker Compose, PostgreSQL 16, Keycloak 26, Seq |
+| Infrastructure | Docker Compose, PostgreSQL 16, Keycloak 26, Seq, MinIO, Redis |
 
 ## Prerequisites
 
@@ -43,6 +43,8 @@ docker compose up --build
 | Keycloak admin console | http://localhost:8080/admin |
 | Seq (log viewer) | http://localhost:5341 |
 | Adminer (database UI) | http://localhost:8081 |
+| MinIO (object storage API) | http://localhost:9000 |
+| MinIO console | http://localhost:9001 |
 | PostgreSQL | `localhost:5432` (user/password/db: `flowops`) |
 
 Stop the stack:

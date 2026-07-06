@@ -6,6 +6,7 @@ Express.js and TypeScript backend for the FlowOps workflow automation platform.
 
 - Express.js with TypeScript
 - PostgreSQL with Prisma ORM 7
+- MinIO / S3-compatible object storage for attachment files
 - Zod for validation
 - Pino for structured logging
 - Swagger / OpenAPI docs
@@ -83,6 +84,14 @@ docker compose exec api npm run db:seed
 | `KEYCLOAK_ISSUER` | Expected JWT issuer (Keycloak realm URL) | `http://localhost:8080/realms/flowops` |
 | `KEYCLOAK_JWKS_URI` | JWKS endpoint for signature verification | `{KEYCLOAK_ISSUER}/protocol/openid-connect/certs` |
 | `KEYCLOAK_CLIENT_ID` | Expected token client (`azp` claim) | `flowops-web` |
+| `REDIS_URL` | Redis connection string (BullMQ job queues) | `redis://localhost:6379` |
+| `STORAGE_PROVIDER` | Object storage backend (`minio` or `s3`) | `minio` |
+| `STORAGE_ENDPOINT` | S3-compatible API endpoint | `http://localhost:9000` |
+| `STORAGE_ACCESS_KEY` | Object storage access key | `minioadmin` |
+| `STORAGE_SECRET_KEY` | Object storage secret key | `minioadmin` |
+| `STORAGE_BUCKET` | Bucket for workflow request attachments | `flowops-attachments` |
+| `STORAGE_REGION` | S3 region name | `us-east-1` |
+| `STORAGE_FORCE_PATH_STYLE` | Use path-style URLs (required for MinIO) | `true` |
 
 Example local value:
 
@@ -90,7 +99,25 @@ Example local value:
 DATABASE_URL=postgresql://flowops:flowops@localhost:5432/flowops?schema=public
 ```
 
-When running in Docker Compose, database credentials are configured in the **repo root** `.env` file. The API container receives a `DATABASE_URL` pointing at the `postgres` service.
+When running in Docker Compose, database credentials are configured in the **repo root** `.env` file. The API container receives a `DATABASE_URL` pointing at the `postgres` service and `STORAGE_ENDPOINT=http://minio:9000` for attachment uploads.
+
+## Object storage and attachments
+
+Workflow request **attachments** store file bytes in MinIO (local) or any S3-compatible provider (production). PostgreSQL stores metadata only (`Attachment` model).
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /api/workflow-requests/:id/attachments` | Upload a file (`multipart/form-data`, field name `file`) |
+| `GET /api/workflow-requests/:id/attachments` | List attachment metadata for a request |
+| `GET /api/workflow-requests/:id` | Request detail includes an `attachments` array |
+| `GET /api/attachments/:id/download` | Download file (backend streams from object storage) |
+| `DELETE /api/attachments/:id` | Delete attachment (uploader or `requests:view-all`) |
+
+Allowed file types: PDF, PNG, JPG/JPEG, DOCX, XLSX, CSV, TXT. Maximum size: **10MB**.
+
+`GET /api/health` includes a `storage` field (`connected` / `disconnected`) when MinIO is configured.
+
+With Docker Compose, the `minio-init` service creates the `flowops-attachments` bucket automatically.
 
 ## Logging (Seq)
 

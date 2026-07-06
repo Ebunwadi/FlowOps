@@ -9,6 +9,8 @@ import { env } from "./env";
 
 let storageClient: S3Client | null = null;
 
+export const ATTACHMENTS_BUCKET_NAME: string = env.storageBucket;
+
 export function getStorageClientConfig(): S3ClientConfig {
   return {
     region: env.storageRegion,
@@ -27,6 +29,10 @@ export function getStorageClient(): S3Client {
   }
 
   return storageClient;
+}
+
+export function getAttachmentsBucketName(): string {
+  return ATTACHMENTS_BUCKET_NAME;
 }
 
 function isMissingBucketError(error: unknown): boolean {
@@ -50,13 +56,13 @@ export async function ensureAttachmentsBucket(
   client: S3Client = getStorageClient(),
 ): Promise<void> {
   try {
-    await client.send(new HeadBucketCommand({ Bucket: env.storageBucket }));
+    await client.send(new HeadBucketCommand({ Bucket: getAttachmentsBucketName() }));
   } catch (error) {
     if (!isMissingBucketError(error)) {
       throw error;
     }
 
-    await client.send(new CreateBucketCommand({ Bucket: env.storageBucket }));
+    await client.send(new CreateBucketCommand({ Bucket: getAttachmentsBucketName() }));
   }
 }
 
@@ -64,7 +70,7 @@ export async function checkStorageConnection(
   client: S3Client = getStorageClient(),
 ): Promise<boolean> {
   try {
-    await client.send(new HeadBucketCommand({ Bucket: env.storageBucket }));
+    await client.send(new HeadBucketCommand({ Bucket: getAttachmentsBucketName() }));
     return true;
   } catch {
     return false;

@@ -48,14 +48,49 @@ const envSchema = z.object({
   STORAGE_BUCKET: z.string().min(1).default("flowops-attachments"),
   STORAGE_REGION: z.string().min(1).default("us-east-1"),
   STORAGE_FORCE_PATH_STYLE: z.preprocess(
-    (value) => value === "true" || value === true,
+    (value) => {
+      if (value === undefined || value === null || value === "") {
+        return undefined;
+      }
+      return value === "true" || value === true;
+    },
     z.boolean().default(true),
   ),
 });
 
 const parsedEnv = envSchema.parse(process.env);
 
-export const env = {
+export interface FlowOpsEnv {
+  apiPrefix: string;
+  corsOrigins: string[];
+  databaseUrl: string;
+  logLevel: "debug" | "info" | "warn" | "error";
+  nodeEnv: "development" | "test" | "production";
+  port: number;
+  seqApiKey: string | undefined;
+  seqServerUrl: string | undefined;
+  keycloakIssuer: string;
+  keycloakJwksUri: string;
+  keycloakClientId: string;
+  redisUrl: string;
+  emailTransport: "console" | "smtp";
+  emailFrom: string;
+  appPublicUrl: string;
+  smtpHost: string | undefined;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string | undefined;
+  smtpPassword: string | undefined;
+  storageProvider: "minio" | "s3";
+  storageEndpoint: string;
+  storageAccessKey: string;
+  storageSecretKey: string;
+  storageBucket: string;
+  storageRegion: string;
+  storageForcePathStyle: boolean;
+}
+
+export const env: FlowOpsEnv = {
   apiPrefix: parsedEnv.API_PREFIX,
   corsOrigins: parsedEnv.CORS_ORIGINS.split(",").map((origin) => origin.trim()),
   databaseUrl: parsedEnv.DATABASE_URL,

@@ -1,4 +1,5 @@
 import type { WorkflowFieldType } from "@/types/workflow-template";
+import type { WorkflowRequestAttachment } from "@/types/attachment";
 
 export const WORKFLOW_REQUEST_STATUSES = [
   "DRAFT",
@@ -153,7 +154,7 @@ export interface WorkflowRequestDetailResponse {
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
-  attachments: never[];
+  attachments: WorkflowRequestAttachment[];
   approvalHistory: WorkflowRequestApprovalHistoryItem[];
   timeline: WorkflowRequestTimelineItem[];
   comments: WorkflowRequestCommentResponse[];
