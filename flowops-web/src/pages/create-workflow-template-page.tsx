@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 
 import { listOrganisationRoles } from "@/api/members";
 import { useOrganisation } from "@/auth/use-organisation";
@@ -8,8 +8,13 @@ import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen";
 import { WorkflowTemplateForm } from "@/components/workflows/workflow-template-form";
 import { Button } from "@/components/ui/button";
 import { DismissibleAlert } from "@/components/ui/dismissible-alert";
+import type { CreateWorkflowFromAiLocationState } from "@/types/ai-workflow-suggestion";
 
 export function CreateWorkflowTemplatePage() {
+  const location = useLocation();
+  const aiState = location.state as CreateWorkflowFromAiLocationState | null;
+  const fromAi = aiState?.fromAi === true ? aiState : null;
+
   const { currentOrganisation } = useOrganisation();
   const { hasPermission, membershipAccessLoading } = usePermissions();
 
@@ -71,8 +76,17 @@ export function CreateWorkflowTemplatePage() {
         </Button>
       </div>
 
+      {fromAi ? (
+        <DismissibleAlert variant="warning">
+          This workflow was pre-filled from an AI suggestion. Review every field,
+          assign approver roles where needed, and save only when you are satisfied.
+        </DismissibleAlert>
+      ) : null}
+
       <WorkflowTemplateForm
         cancelTo="/workflows"
+        initialValues={fromAi?.initialValues}
+        key={fromAi ? `ai-${fromAi.key}` : "create"}
         mode="create"
         roles={rolesQuery.data ?? []}
         rolesLoading={rolesQuery.isLoading}

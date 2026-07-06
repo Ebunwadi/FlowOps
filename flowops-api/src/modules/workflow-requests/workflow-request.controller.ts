@@ -6,6 +6,7 @@ import {
 } from "../../common/errors/httpErrors";
 import { sendSuccess } from "../../common/http/apiResponse";
 import { asyncHandler } from "../../common/middleware/asyncHandler";
+import * as aiService from "../ai/ai.service";
 import * as workflowRequestService from "./workflow-request.service";
 import type { ListWorkflowRequestsQuery } from "./workflow-request.validation";
 
@@ -116,6 +117,25 @@ export const getWorkflowRequestDetailController = asyncHandler(
     sendSuccess(res, {
       data,
       message: "Workflow request retrieved successfully",
+    });
+  },
+);
+
+export const generateWorkflowRequestSummaryController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const membership = requireMembership(req);
+
+    const data = await aiService.generateWorkflowRequestSummary(
+      organisation.id,
+      { userId: localUser.id, roleId: membership.roleId },
+      req.params.id,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Request summary generated successfully",
     });
   },
 );

@@ -12,6 +12,7 @@ import {
 import { uploadAttachmentFileMiddleware } from "../attachments/attachment.upload.middleware";
 import {
   cancelWorkflowRequestController,
+  generateWorkflowRequestSummaryController,
   getWorkflowRequestDetailController,
   listMyWorkflowRequestsController,
   listOrganisationWorkflowRequestsController,
@@ -138,6 +139,13 @@ workflowRequestRouter.post(
     body: requestChangesWorkflowRequestSchema,
   }),
   requestChangesWorkflowRequestController,
+);
+
+workflowRequestRouter.post(
+  "/:id/ai-summary",
+  ensureOrganisationContext,
+  validateRequest({ params: workflowRequestParamsSchema }),
+  generateWorkflowRequestSummaryController,
 );
 
 workflowRequestRouter.get(

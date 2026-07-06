@@ -20,6 +20,7 @@ import { SubmitRequestPage } from "@/pages/submit-request-page";
 import { OrganisationSettingsPage } from "@/pages/organisation-settings-page";
 import { SettingsPage } from "@/pages/settings-page";
 import { WorkflowsPage } from "@/pages/workflows-page";
+import { AiGenerateWorkflowPage } from "@/pages/ai-generate-workflow-page";
 import { CreateWorkflowTemplatePage } from "@/pages/create-workflow-template-page";
 import { EditWorkflowTemplatePage } from "@/pages/edit-workflow-template-page";
 import { WorkflowTemplateDetailPage } from "@/pages/workflow-template-detail-page";
@@ -54,6 +55,10 @@ export const router = createBrowserRouter([
               {
                 path: "workflows/new",
                 element: <CreateWorkflowTemplatePage />,
+              },
+              {
+                path: "workflows/ai-generate",
+                element: <AiGenerateWorkflowPage />,
               },
               {
                 path: "workflows/:id/edit",
