@@ -2,6 +2,7 @@ import { MembershipStatus } from "../src/generated/prisma/client";
 import { prisma } from "../src/config/database";
 import { DEFAULT_ROLE_NAMES } from "../src/modules/roles/default-roles";
 import { createOrganisation } from "../src/modules/organisations/organisation.service";
+import { createDefaultOrganisationSettings } from "../src/modules/organisation-settings/organisation-settings.service";
 import * as roleService from "../src/modules/roles/role.service";
 
 jest.mock("../src/config/database", () => ({
@@ -11,6 +12,7 @@ jest.mock("../src/config/database", () => ({
 }));
 
 jest.mock("../src/modules/roles/role.service");
+jest.mock("../src/modules/organisation-settings/organisation-settings.service");
 
 describe("createOrganisation", () => {
   const input = {
@@ -97,12 +99,20 @@ describe("createOrganisation", () => {
     jest
       .mocked(roleService.createDefaultRolesForOrganisation)
       .mockResolvedValue(roles);
+
+    jest
+      .mocked(createDefaultOrganisationSettings)
+      .mockResolvedValue(undefined);
   });
 
-  it("creates the organisation, default roles, and owner membership in one transaction", async () => {
+  it("creates the organisation, default settings, default roles, and owner membership in one transaction", async () => {
     const result = await createOrganisation(input);
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(createDefaultOrganisationSettings).toHaveBeenCalledWith(
+      organisation.id,
+      expect.any(Object),
+    );
     expect(roleService.createDefaultRolesForOrganisation).toHaveBeenCalledWith(
       organisation.id,
       expect.any(Object),
