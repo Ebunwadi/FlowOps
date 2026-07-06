@@ -7,6 +7,7 @@ import { logger } from "../../config/logger";
 import { MembershipStatus } from "../../generated/prisma/client";
 import { DEFAULT_ROLE_NAMES } from "../roles/default-roles";
 import { createDefaultRolesForOrganisation } from "../roles/role.service";
+import { createDefaultOrganisationSettings } from "../organisation-settings/organisation-settings.service";
 import {
   toOrganisationCreatedResponse,
   toOrganisationResponse,
@@ -43,6 +44,8 @@ export async function createOrganisation(
           createdById: input.createdById,
         },
       });
+
+      await createDefaultOrganisationSettings(organisation.id, tx);
 
       const roles = await createDefaultRolesForOrganisation(organisation.id, tx);
 

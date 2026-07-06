@@ -1,4 +1,8 @@
+import { Link } from "react-router-dom";
+
 import { NotificationPreferencesPlaceholder } from "@/components/settings/notification-preferences-placeholder";
+import { usePermissions } from "@/auth/use-permissions";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,6 +12,9 @@ import {
 } from "@/components/ui/card";
 
 export function SettingsPage() {
+  const { hasPermission } = usePermissions();
+  const canViewOrganisationSettings = hasPermission("settings:view");
+
   return (
     <div className="space-y-6">
       <div>
@@ -18,6 +25,23 @@ export function SettingsPage() {
           Manage your profile, notification preferences, and account settings.
         </p>
       </div>
+
+      {canViewOrganisationSettings ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Organisation</CardTitle>
+            <CardDescription>
+              Configure AI, webhooks, API access, and approval defaults for this
+              workspace.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link to="/settings/organisation">Open organisation settings</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <NotificationPreferencesPlaceholder />
 

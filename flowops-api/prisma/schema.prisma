@@ -45,9 +45,27 @@ model Organisation {
   workflowRequests  WorkflowRequest[]
   notifications     Notification[]
   attachments       Attachment[]
+  settings          OrganisationSettings?
 
   @@index([createdById])
   @@map("organisations")
+}
+
+/// Per-organisation feature and behaviour configuration.
+model OrganisationSettings {
+  id                      String   @id @default(uuid())
+  organisationId          String   @unique
+  allowAiFeatures         Boolean  @default(true)
+  allowWebhooks           Boolean  @default(true)
+  allowApiKeys            Boolean  @default(true)
+  defaultSlaHours         Int?
+  requireCommentsOnReject Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@map("organisation_settings")
 }
 
 /// Links a FlowOps user to an organisation with an assigned role.

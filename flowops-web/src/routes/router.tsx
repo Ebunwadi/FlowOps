@@ -17,6 +17,7 @@ import { EditDraftRequestPage } from "@/pages/edit-draft-request-page";
 import { RequestDetailPage } from "@/pages/request-detail-page";
 import { RequestsPage } from "@/pages/requests-page";
 import { SubmitRequestPage } from "@/pages/submit-request-page";
+import { OrganisationSettingsPage } from "@/pages/organisation-settings-page";
 import { SettingsPage } from "@/pages/settings-page";
 import { WorkflowsPage } from "@/pages/workflows-page";
 import { CreateWorkflowTemplatePage } from "@/pages/create-workflow-template-page";
@@ -97,6 +98,10 @@ export const router = createBrowserRouter([
               {
                 path: "settings",
                 element: <SettingsPage />,
+              },
+              {
+                path: "settings/organisation",
+                element: <OrganisationSettingsPage />,
               },
               {
                 path: "audit-logs",
