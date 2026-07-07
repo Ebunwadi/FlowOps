@@ -2,10 +2,12 @@ import { LogOrigin } from "../../common/logging/logFormat";
 import { logger } from "../../config/logger";
 import { closeEmailQueue } from "../queues/email.queue";
 import { closeNotificationQueue } from "../queues/notification.queue";
+import { closeWebhookQueue } from "../queues/webhook.queue";
 import { createEmailWorker } from "../processors/email.processor";
 import { createNotificationWorker } from "../processors/notification.processor";
+import { createWebhookWorker } from "../processors/webhook.processor";
 
-const workers = [createEmailWorker(), createNotificationWorker()];
+const workers = [createEmailWorker(), createNotificationWorker(), createWebhookWorker()];
 
 for (const worker of workers) {
   worker.on("completed", (job) => {
@@ -52,7 +54,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   );
 
   await Promise.all(workers.map(async (worker) => worker.close()));
-  await Promise.all([closeEmailQueue(), closeNotificationQueue()]);
+  await Promise.all([closeEmailQueue(), closeNotificationQueue(), closeWebhookQueue()]);
 
   logger.info(
     { origin: LogOrigin.API, event: "worker.stopped" },

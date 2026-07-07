@@ -25,6 +25,8 @@ model User {
   comments                Comment[]
   notifications           Notification[] @relation("NotificationRecipient")
   uploadedAttachments     Attachment[]
+  createdApiKeys          ApiKey[]           @relation("CreatedApiKeys")
+  createdWebhookEndpoints WebhookEndpoint[] @relation("CreatedWebhookEndpoints")
 
   @@map("users")
 }
@@ -46,6 +48,8 @@ model Organisation {
   notifications     Notification[]
   attachments       Attachment[]
   settings          OrganisationSettings?
+  apiKeys           ApiKey[]
+  webhookEndpoints  WebhookEndpoint[]
 
   @@index([createdById])
   @@map("organisations")
@@ -391,4 +395,74 @@ model Notification {
   @@index([type])
   @@index([isRead])
   @@map("notifications")
+}
+
+/// Hashed API key for external system authentication (raw key shown once at creation).
+model ApiKey {
+  id             String    @id @default(uuid())
+  organisationId String
+  name           String
+  keyPrefix      String
+  keyHash        String
+  scopes         Json?
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdById    String
+  createdAt      DateTime  @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("CreatedApiKeys", fields: [createdById], references: [id])
+
+  @@index([organisationId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+/// Outbound webhook endpoint registered by an organisation for FlowOps events.
+model WebhookEndpoint {
+  id             String   @id @default(uuid())
+  organisationId String
+  name           String
+  url            String
+  secret         String
+  events         Json
+  isActive       Boolean  @default(true)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("CreatedWebhookEndpoints", fields: [createdById], references: [id])
+  deliveries   WebhookDelivery[]
+
+  @@index([organisationId])
+  @@map("webhook_endpoints")
+}
+
+/// A single webhook delivery attempt for an endpoint and event.
+model WebhookDelivery {
+  id                String                @id @default(uuid())
+  webhookEndpointId String
+  eventType         String
+  payload           Json
+  status            WebhookDeliveryStatus @default(PENDING)
+  responseStatus    Int?
+  responseBody      String?
+  attempts          Int                   @default(0)
+  nextAttemptAt     DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime              @default(now())
+
+  webhookEndpoint WebhookEndpoint @relation(fields: [webhookEndpointId], references: [id], onDelete: Cascade)
+
+  @@index([webhookEndpointId])
+  @@index([status])
+  @@map("webhook_deliveries")
 }
