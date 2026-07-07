@@ -15,6 +15,7 @@ import { OrganisationMembersPage } from "@/pages/organisation-members-page";
 import { OrganisationSetupPage } from "@/pages/organisation-setup-page";
 import { EditDraftRequestPage } from "@/pages/edit-draft-request-page";
 import { RequestDetailPage } from "@/pages/request-detail-page";
+import { ReportsPage } from "@/pages/reports-page";
 import { RequestsPage } from "@/pages/requests-page";
 import { SubmitRequestPage } from "@/pages/submit-request-page";
 import { ApiKeysSettingsPage } from "@/pages/api-keys-settings-page";
@@ -131,6 +132,10 @@ export const router = createBrowserRouter([
               {
                 path: "audit-logs",
                 element: <AuditLogsPage />,
+              },
+              {
+                path: "reports",
+                element: <ReportsPage />,
               },
               {
                 path: "organisation/members",
