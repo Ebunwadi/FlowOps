@@ -24,6 +24,12 @@ jest.mock("../src/modules/notifications/notification.email", () => ({
   enqueueRequestRejectedEmail: jest.fn(),
   enqueueChangesRequestedEmail: jest.fn(),
 }));
+jest.mock("../src/modules/out-of-office/out-of-office.resolution", () => ({
+  resolveApprovalNotificationRecipients: jest.fn(),
+}));
+jest.mock("../src/modules/out-of-office/out-of-office.audit", () => ({
+  recordOutOfOfficeReassignmentAudit: jest.fn(),
+}));
 
 import {
   enqueueApprovalRequiredEmails,
@@ -31,6 +37,7 @@ import {
   enqueueRequestCompletedEmail,
   enqueueRequestRejectedEmail,
 } from "../src/modules/notifications/notification.email";
+import { resolveApprovalNotificationRecipients } from "../src/modules/out-of-office/out-of-office.resolution";
 
 describe("notification service", () => {
   const organisationId = "550e8400-e29b-41d4-a716-446655440000";
@@ -49,6 +56,12 @@ describe("notification service", () => {
     jest.mocked(enqueueRequestCompletedEmail).mockResolvedValue(undefined);
     jest.mocked(enqueueRequestRejectedEmail).mockResolvedValue(undefined);
     jest.mocked(enqueueChangesRequestedEmail).mockResolvedValue(undefined);
+    jest.mocked(resolveApprovalNotificationRecipients).mockImplementation(
+      async (_organisationId, roleRecipients) => ({
+        recipients: roleRecipients,
+        reassignments: [],
+      }),
+    );
     jest
       .mocked(notificationRepository.createNotificationRecord)
       .mockResolvedValue({

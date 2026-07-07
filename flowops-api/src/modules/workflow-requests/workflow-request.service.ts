@@ -31,6 +31,10 @@ import { notifyApproversOfPendingRequest } from "./workflow-request.notification
 import {
   emitWorkflowRequestSubmittedWebhook,
 } from "../webhooks/webhook.emitter";
+import { getFirstEligibleWorkflowStep } from "../approvals/step-condition";
+import {
+  buildRequestValuesByFieldKey,
+} from "../approvals/step-condition";
 import {
   countWorkflowRequests,
   createDraftWorkflowRequestRecord,
@@ -84,12 +88,15 @@ function assertTemplateIsActive(template: TemplateForSubmission): void {
   }
 }
 
-function getFirstApprovalStepOrThrow(template: TemplateForSubmission) {
-  const firstStep = template.steps[0];
+function getFirstEligibleApprovalStepOrThrow(
+  template: TemplateForSubmission,
+  valuesByFieldKey: Record<string, unknown>,
+) {
+  const firstStep = getFirstEligibleWorkflowStep(template.steps, valuesByFieldKey);
 
   if (!firstStep) {
     throw new ValidationError(
-      "This workflow template has no approval steps configured",
+      "No approval steps match the submitted request values for this workflow",
     );
   }
 
@@ -129,11 +136,15 @@ export async function submitWorkflowRequest(
 
   assertTemplateIsActive(template);
 
-  const firstStep = getFirstApprovalStepOrThrow(template);
-
   const validatedValues = validateRequestValues(template.fields, input.values, {
     enforceRequired: true,
   });
+
+  const valuesByFieldKey = buildRequestValuesByFieldKey(
+    template.fields,
+    validatedValues,
+  );
+  const firstStep = getFirstEligibleApprovalStepOrThrow(template, valuesByFieldKey);
 
   const request = await prisma.$transaction(async (tx) =>
     createWorkflowRequestWithValues(
@@ -277,9 +288,11 @@ export async function getWorkflowRequestDetail(
     throw new NotFoundError("Workflow request not found");
   }
 
-  const canView = await viewerCanAccessWorkflowRequest(viewer, {
+  const canView = await viewerCanAccessWorkflowRequest(organisationId, viewer, {
     requesterId: request.requesterId,
     currentStepApproverRoleId: request.currentStep?.approverRoleId ?? null,
+    workflowRequestId: request.id,
+    currentStepId: request.currentStep?.id ?? null,
   });
 
   if (!canView) {
@@ -542,8 +555,6 @@ export async function submitDraftWorkflowRequest(
 
   assertTemplateIsActive(template);
 
-  const firstStep = getFirstApprovalStepOrThrow(template);
-
   const submittedValues: SubmittedRequestValue[] = existing.values.map((value) => ({
     workflowFieldId: value.workflowFieldId,
     value: value.value as SubmittedRequestValue["value"],
@@ -552,6 +563,12 @@ export async function submitDraftWorkflowRequest(
   const validatedValues = validateRequestValues(template.fields, submittedValues, {
     enforceRequired: true,
   });
+
+  const valuesByFieldKey = buildRequestValuesByFieldKey(
+    template.fields,
+    validatedValues,
+  );
+  const firstStep = getFirstEligibleApprovalStepOrThrow(template, valuesByFieldKey);
 
   const submittedAt = new Date();
 

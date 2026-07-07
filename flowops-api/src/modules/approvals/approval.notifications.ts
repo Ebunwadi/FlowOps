@@ -1,6 +1,7 @@
 import { logger } from "../../config/logger";
 import {
   recordApprovalRequiredNotification,
+  recordApprovalDelegatedNotification,
   recordChangesRequestedNotification,
   recordRequestApprovedStepNotification,
   recordRequestCompletedNotification,
@@ -126,5 +127,32 @@ export function notifyRequesterOfChangesRequested(
       requesterId: input.requesterId,
     },
     "[API] Notification recorded: requester should be notified that changes were requested",
+  );
+}
+
+interface ApprovalDelegatedNotificationInput {
+  organisationId: string;
+  workflowRequestId: string;
+  delegatedToId: string;
+  delegatedByName: string;
+  stepName: string;
+  requestTitle?: string | null;
+}
+
+/** Notifies the delegate that approval responsibility was assigned to them. */
+export function notifyApprovalDelegated(
+  input: ApprovalDelegatedNotificationInput,
+): void {
+  recordApprovalDelegatedNotification(input);
+
+  logger.info(
+    {
+      origin: "api",
+      event: "approval.notification.delegated",
+      organisationId: input.organisationId,
+      workflowRequestId: input.workflowRequestId,
+      delegatedToId: input.delegatedToId,
+    },
+    `[API] Notification recorded: approval delegated for step "${input.stepName}"`,
   );
 }

@@ -126,7 +126,7 @@ export async function generateWorkflowRequestSummary(
     throw new NotFoundError("Workflow request not found");
   }
 
-  const canView = await viewerCanAccessWorkflowRequest(viewer, {
+  const canView = await viewerCanAccessWorkflowRequest(organisationId, viewer, {
     requesterId: request.requesterId,
     currentStepApproverRoleId: request.currentStep?.approverRoleId ?? null,
   });

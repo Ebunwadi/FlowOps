@@ -1,9 +1,16 @@
 import { DEFAULT_ROLE_NAMES } from "../roles/default-roles";
+import {
+  getFirstEligibleWorkflowStep,
+  getNextEligibleWorkflowStep,
+  type WorkflowStepWithCondition,
+} from "./step-condition";
 
-export interface WorkflowStepOrderRef {
+export interface WorkflowStepOrderRef extends WorkflowStepWithCondition {
   id: string;
   stepOrder: number;
 }
+
+export { getFirstEligibleWorkflowStep, getNextEligibleWorkflowStep };
 
 export function isOrganisationOwnerRole(roleName: string): boolean {
   return roleName === DEFAULT_ROLE_NAMES.OWNER;

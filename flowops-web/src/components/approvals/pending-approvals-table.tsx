@@ -304,6 +304,11 @@ function PendingApprovalRow({ approval }: { approval: PendingApprovalListItem })
         >
           {approval.title ?? "Untitled request"}
         </Link>
+        {approval.outOfOfficeReassignment ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Covering for {formatRequesterName(approval.outOfOfficeReassignment)}
+          </p>
+        ) : null}
       </td>
       <td className="px-4 py-3 text-muted-foreground">
         {approval.workflowTemplate.name}

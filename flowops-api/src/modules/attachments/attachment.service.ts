@@ -46,6 +46,7 @@ export interface AttachmentDownloadResult {
 type AttachmentAccessAction = "upload" | "list" | "download" | "delete";
 
 async function assertViewerCanAccessAttachments(
+  organisationId: string,
   viewer: WorkflowRequestViewer,
   request: {
     requesterId: string;
@@ -53,7 +54,7 @@ async function assertViewerCanAccessAttachments(
   },
   action: AttachmentAccessAction,
 ): Promise<void> {
-  const canAccess = await viewerCanAccessWorkflowRequest(viewer, {
+  const canAccess = await viewerCanAccessWorkflowRequest(organisationId, viewer, {
     requesterId: request.requesterId,
     currentStepApproverRoleId: request.currentStep?.approverRoleId ?? null,
   });
@@ -85,7 +86,7 @@ export async function listWorkflowRequestAttachments(
     throw new NotFoundError("Workflow request not found");
   }
 
-  await assertViewerCanAccessAttachments(viewer, request, "list");
+  await assertViewerCanAccessAttachments(organisationId, viewer, request, "list");
 
   const attachments = await findWorkflowRequestAttachments(
     workflowRequestId,
@@ -107,6 +108,7 @@ export async function downloadAttachment(
   }
 
   await assertViewerCanAccessAttachments(
+    organisationId,
     viewer,
     attachment.workflowRequest,
     "download",
@@ -170,6 +172,7 @@ export async function deleteAttachment(
   }
 
   await assertViewerCanAccessAttachments(
+    organisationId,
     viewer,
     attachment.workflowRequest,
     "delete",
@@ -248,7 +251,7 @@ export async function uploadWorkflowRequestAttachment(
     throw new NotFoundError("Workflow request not found");
   }
 
-  await assertViewerCanAccessAttachments(viewer, request, "upload");
+  await assertViewerCanAccessAttachments(organisationId, viewer, request, "upload");
 
   const validated = validateAttachmentUpload({
     originalFileName: input.originalFileName,

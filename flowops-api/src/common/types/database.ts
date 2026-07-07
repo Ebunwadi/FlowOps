@@ -18,4 +18,5 @@ export type DbClient = Pick<
   | "notification"
   | "attachment"
   | "user"
+  | "outOfOfficeRule"
 >;
