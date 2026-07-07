@@ -9,6 +9,7 @@ import { asyncHandler } from "../../common/middleware/asyncHandler";
 import * as approvalService from "./approval.service";
 import type {
   ApproveWorkflowRequestBody,
+  DelegateWorkflowRequestBody,
   ListPendingApprovalsQuery,
   RejectWorkflowRequestBody,
   RequestChangesWorkflowRequestBody,
@@ -40,7 +41,7 @@ function requireMembership(req: Request) {
 
 export const listPendingApprovalsController = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    requireLocalUser(req);
+    const localUser = requireLocalUser(req);
     const organisation = requireOrganisation(req);
     const membership = requireMembership(req);
     const query = req.query as unknown as ListPendingApprovalsQuery;
@@ -48,6 +49,7 @@ export const listPendingApprovalsController = asyncHandler(
     const data = await approvalService.listPendingApprovals(
       organisation.id,
       {
+        userId: localUser.id,
         roleId: membership.roleId,
         roleName: membership.role.name,
       },
@@ -129,6 +131,31 @@ export const requestChangesWorkflowRequestController = asyncHandler(
     sendSuccess(res, {
       data,
       message: "Changes requested successfully",
+    });
+  },
+);
+
+export const delegateWorkflowRequestController = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const localUser = requireLocalUser(req);
+    const organisation = requireOrganisation(req);
+    const membership = requireMembership(req);
+
+    const data = await approvalService.delegateWorkflowRequestApproval(
+      organisation.id,
+      {
+        userId: localUser.id,
+        roleId: membership.roleId,
+        roleName: membership.role.name,
+      },
+      req.params.id,
+      req.body as DelegateWorkflowRequestBody,
+    );
+
+    sendSuccess(res, {
+      data,
+      message: "Approval delegated successfully",
+      statusCode: 201,
     });
   },
 );

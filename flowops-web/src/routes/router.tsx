@@ -18,6 +18,8 @@ import { RequestDetailPage } from "@/pages/request-detail-page";
 import { RequestsPage } from "@/pages/requests-page";
 import { SubmitRequestPage } from "@/pages/submit-request-page";
 import { ApiKeysSettingsPage } from "@/pages/api-keys-settings-page";
+import { DelegationSettingsPage } from "@/pages/delegation-settings-page";
+import { OutOfOfficeSettingsPage } from "@/pages/out-of-office-settings-page";
 import { WebhooksSettingsPage } from "@/pages/webhooks-settings-page";
 import { OrganisationSettingsPage } from "@/pages/organisation-settings-page";
 import { SettingsPage } from "@/pages/settings-page";
@@ -117,6 +119,14 @@ export const router = createBrowserRouter([
               {
                 path: "settings/webhooks",
                 element: <WebhooksSettingsPage />,
+              },
+              {
+                path: "settings/delegation",
+                element: <DelegationSettingsPage />,
+              },
+              {
+                path: "settings/out-of-office",
+                element: <OutOfOfficeSettingsPage />,
               },
               {
                 path: "audit-logs",

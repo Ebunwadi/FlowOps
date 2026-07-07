@@ -21,6 +21,7 @@ export interface PendingApprovalListItem {
   currentStep: PendingApprovalStepSummary;
   submittedAt: string | null;
   dueAt: string | null;
+  outOfOfficeReassignment?: PendingApprovalRequesterSummary;
 }
 
 export interface PaginatedPendingApprovalsResponse {

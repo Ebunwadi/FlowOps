@@ -24,6 +24,7 @@ const templateForSubmissionSelect = {
       name: true,
       stepOrder: true,
       approverRoleId: true,
+      condition: true,
     },
   },
 } as const;

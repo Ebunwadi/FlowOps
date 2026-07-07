@@ -25,6 +25,7 @@ export interface PendingApprovalListItem {
   currentStep: PendingApprovalStepSummary;
   submittedAt: string | null;
   dueAt: string | null;
+  outOfOfficeReassignment?: PendingApprovalRequesterSummary;
 }
 
 export interface PaginatedPendingApprovalsResponse {
@@ -48,6 +49,7 @@ function computeDueAt(
 
 export function toPendingApprovalListItem(
   request: PendingApprovalRecord,
+  outOfOfficeReassignment?: PendingApprovalRequesterSummary,
 ): PendingApprovalListItem {
   if (!request.currentStep) {
     throw new Error("Pending approval record is missing a current step");
@@ -73,6 +75,9 @@ export function toPendingApprovalListItem(
     },
     submittedAt: request.submittedAt ? request.submittedAt.toISOString() : null,
     dueAt: computeDueAt(request.submittedAt, request.currentStep.slaHours),
+    ...(outOfOfficeReassignment
+      ? { outOfOfficeReassignment }
+      : {}),
   };
 }
 

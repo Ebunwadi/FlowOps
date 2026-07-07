@@ -13,8 +13,11 @@ import {
   notifyRequesterOfRejectedRequest,
 } from "../src/modules/approvals/approval.notifications";
 import * as approvalRepository from "../src/modules/approvals/approval.repository";
+import * as approvalDelegationRepository from "../src/modules/approvals/approval-delegation.repository";
+import * as outOfOfficeRepository from "../src/modules/out-of-office/out-of-office.repository";
 import {
   approveWorkflowRequest,
+  delegateWorkflowRequestApproval,
   isOrganisationOwnerRole,
   listPendingApprovals,
   rejectWorkflowRequest,
@@ -23,6 +26,8 @@ import {
 import { DEFAULT_ROLE_NAMES } from "../src/modules/roles/default-roles";
 
 jest.mock("../src/modules/approvals/approval.repository");
+jest.mock("../src/modules/approvals/approval-delegation.repository");
+jest.mock("../src/modules/out-of-office/out-of-office.repository");
 jest.mock("../src/modules/approvals/approval.audit", () => ({
   recordApprovalAuditEvent: jest.fn(),
   APPROVAL_AUDIT_ACTIONS: {
@@ -30,10 +35,12 @@ jest.mock("../src/modules/approvals/approval.audit", () => ({
     COMPLETED: "WORKFLOW_REQUEST_COMPLETED",
     REJECTED: "WORKFLOW_REQUEST_REJECTED",
     CHANGES_REQUESTED: "WORKFLOW_REQUEST_CHANGES_REQUESTED",
+    DELEGATED: "WORKFLOW_REQUEST_APPROVAL_DELEGATED",
   },
 }));
 jest.mock("../src/modules/approvals/approval.notifications", () => ({
   notifyApproversOfNextStep: jest.fn(),
+  notifyApprovalDelegated: jest.fn(),
   notifyRequesterOfApprovedStep: jest.fn(),
   notifyRequesterOfCompletedRequest: jest.fn(),
   notifyRequesterOfRejectedRequest: jest.fn(),
@@ -93,6 +100,7 @@ describe("approval service", () => {
       name: "Manager Approval",
       stepOrder: 10,
       approverRoleId,
+      allowDelegation: true,
     },
     workflowTemplate: {
       id: templateId,
@@ -103,15 +111,20 @@ describe("approval service", () => {
           name: "Manager Approval",
           stepOrder: 10,
           approverRoleId,
+          condition: null,
+          allowDelegation: true,
         },
         {
           id: stepTwoId,
           name: "IT Approval",
           stepOrder: 20,
           approverRoleId: otherRoleId,
+          condition: null,
+          allowDelegation: false,
         },
       ],
     },
+    values: [],
   };
 
   beforeEach(() => {
@@ -119,6 +132,21 @@ describe("approval service", () => {
     jest.mocked(prisma.$transaction).mockImplementation(async (callback) =>
       callback(prisma as never),
     );
+    jest
+      .mocked(approvalDelegationRepository.findActiveDelegatedRequestIdsForUser)
+      .mockResolvedValue([]);
+    jest
+      .mocked(outOfOfficeRepository.findOutOfOfficeDelegatedPendingRequestIds)
+      .mockResolvedValue([]);
+    jest
+      .mocked(outOfOfficeRepository.findOutOfOfficeReassignmentsForDelegate)
+      .mockResolvedValue([]);
+    jest
+      .mocked(outOfOfficeRepository.isActiveOutOfOfficeDelegateForRole)
+      .mockResolvedValue(false);
+    jest
+      .mocked(approvalDelegationRepository.findApprovalDelegationForRequestStep)
+      .mockResolvedValue(null);
   });
 
   describe("isOrganisationOwnerRole", () => {
@@ -138,12 +166,13 @@ describe("approval service", () => {
 
       const result = await listPendingApprovals(
         organisationId,
-        { roleId: approverRoleId, roleName: DEFAULT_ROLE_NAMES.MANAGER },
+        { userId: approverUserId, roleId: approverRoleId, roleName: DEFAULT_ROLE_NAMES.MANAGER },
         { page: 1, limit: 20 },
       );
 
       expect(approvalRepository.findPendingApprovals).toHaveBeenCalledWith(organisationId, {
         approverRoleId,
+        delegatedRequestIds: [],
         search: undefined,
         page: 1,
         limit: 20,
@@ -157,12 +186,13 @@ describe("approval service", () => {
 
       await listPendingApprovals(
         organisationId,
-        { roleId: approverRoleId, roleName: DEFAULT_ROLE_NAMES.OWNER },
+        { userId: approverUserId, roleId: approverRoleId, roleName: DEFAULT_ROLE_NAMES.OWNER },
         { page: 1, limit: 20 },
       );
 
       expect(approvalRepository.findPendingApprovals).toHaveBeenCalledWith(organisationId, {
         approverRoleId: undefined,
+        delegatedRequestIds: undefined,
         search: undefined,
         page: 1,
         limit: 20,
@@ -229,6 +259,69 @@ describe("approval service", () => {
       expect(notifyRequesterOfCompletedRequest).not.toHaveBeenCalled();
       expect(result.status).toBe("PENDING_APPROVAL");
       expect(result.currentStep).toMatchObject({ id: stepTwoId });
+    });
+
+    it("skips ineligible conditional steps and completes when no further steps match", async () => {
+      const conditionalRequest = {
+        ...requestForApproval,
+        workflowTemplate: {
+          ...requestForApproval.workflowTemplate,
+          steps: [
+            requestForApproval.workflowTemplate.steps[0],
+            {
+              ...requestForApproval.workflowTemplate.steps[1],
+              condition: {
+                fieldKey: "urgency",
+                operator: "equals",
+                value: "High",
+              },
+            },
+          ],
+        },
+        values: [
+          {
+            value: "Low",
+            workflowField: { fieldKey: "urgency" },
+          },
+        ],
+      };
+
+      jest
+        .mocked(approvalRepository.findWorkflowRequestForApproval)
+        .mockResolvedValue(conditionalRequest);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
+      jest.mocked(approvalRepository.applyWorkflowRequestApproval).mockResolvedValue({
+        id: requestId,
+        title: "New laptop request",
+        status: "APPROVED",
+        submittedAt,
+        currentStep: null,
+      });
+
+      const result = await approveWorkflowRequest(
+        organisationId,
+        {
+          userId: approverUserId,
+          roleId: approverRoleId,
+          roleName: DEFAULT_ROLE_NAMES.MANAGER,
+        },
+        requestId,
+        {},
+      );
+
+      expect(approvalRepository.applyWorkflowRequestApproval).toHaveBeenCalledWith(
+        {
+          workflowRequestId: requestId,
+          nextStepId: null,
+          status: "APPROVED",
+          completedAt: expect.any(Date),
+        },
+        prisma,
+      );
+      expect(notifyApproversOfNextStep).not.toHaveBeenCalled();
+      expect(notifyRequesterOfCompletedRequest).toHaveBeenCalled();
+      expect(result.status).toBe("APPROVED");
     });
 
     it("completes the request on the final approval step", async () => {
@@ -602,6 +695,185 @@ describe("approval service", () => {
           { comment: "Not allowed." },
         ),
       ).rejects.toBeInstanceOf(AuthorizationError);
+    });
+  });
+
+  describe("delegateWorkflowRequestApproval", () => {
+    const delegateUserId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+
+    it("creates a delegation when the current approver delegates", async () => {
+      jest
+        .mocked(approvalRepository.findWorkflowRequestForApproval)
+        .mockResolvedValue(requestForApproval);
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
+      jest
+        .mocked(approvalDelegationRepository.findActiveOrganisationMemberByUserId)
+        .mockResolvedValue({
+          id: "member-2",
+          userId: delegateUserId,
+          roleId: otherRoleId,
+        });
+      jest.mocked(approvalDelegationRepository.upsertApprovalDelegationRecord).mockResolvedValue({
+        id: "delegation-1",
+        organisationId,
+        workflowRequestId: requestId,
+        workflowStepId: stepOneId,
+        reason: "Out of office",
+        createdAt: new Date("2026-07-07T12:00:00.000Z"),
+        delegatedBy: {
+          id: approverUserId,
+          firstName: "Approver",
+          lastName: "User",
+          email: "approver@example.com",
+        },
+        delegatedTo: {
+          id: delegateUserId,
+          firstName: "Delegate",
+          lastName: "User",
+          email: "delegate@example.com",
+        },
+      });
+
+      const result = await delegateWorkflowRequestApproval(
+        organisationId,
+        {
+          userId: approverUserId,
+          roleId: approverRoleId,
+          roleName: DEFAULT_ROLE_NAMES.MANAGER,
+        },
+        requestId,
+        { delegatedToId: delegateUserId, reason: "Out of office" },
+      );
+
+      expect(result.delegatedTo.id).toBe(delegateUserId);
+      expect(approvalDelegationRepository.upsertApprovalDelegationRecord).toHaveBeenCalled();
+      expect(recordApprovalAuditEvent).toHaveBeenCalled();
+    });
+
+    it("rejects delegation when the step does not allow it", async () => {
+      jest.mocked(approvalRepository.findWorkflowRequestForApproval).mockResolvedValue({
+        ...requestForApproval,
+        currentStep: {
+          ...requestForApproval.currentStep,
+          allowDelegation: false,
+        },
+      });
+
+      await expect(
+        delegateWorkflowRequestApproval(
+          organisationId,
+          {
+            userId: approverUserId,
+            roleId: approverRoleId,
+            roleName: DEFAULT_ROLE_NAMES.MANAGER,
+          },
+          requestId,
+          { delegatedToId: delegateUserId },
+        ),
+      ).rejects.toThrow("Delegation is not allowed for the current approval step");
+    });
+  });
+
+  describe("delegated approval actions", () => {
+    const delegateUserId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+
+    it("allows a delegated user to approve the current step", async () => {
+      jest
+        .mocked(approvalRepository.findWorkflowRequestForApproval)
+        .mockResolvedValue({
+          ...requestForApproval,
+          values: [],
+        });
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
+      jest.mocked(approvalDelegationRepository.findApprovalDelegationForRequestStep).mockResolvedValue({
+        id: "delegation-1",
+        organisationId,
+        workflowRequestId: requestId,
+        workflowStepId: stepOneId,
+        reason: null,
+        createdAt: new Date("2026-07-07T12:00:00.000Z"),
+        delegatedBy: {
+          id: approverUserId,
+          firstName: "Approver",
+          lastName: "User",
+          email: "approver@example.com",
+        },
+        delegatedTo: {
+          id: delegateUserId,
+          firstName: "Delegate",
+          lastName: "User",
+          email: "delegate@example.com",
+        },
+      });
+      jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
+      jest.mocked(approvalRepository.applyWorkflowRequestApproval).mockResolvedValue({
+        id: requestId,
+        title: "New laptop request",
+        status: "PENDING_APPROVAL",
+        submittedAt,
+        currentStep: { id: stepTwoId, name: "IT Approval" },
+      });
+
+      await approveWorkflowRequest(
+        organisationId,
+        {
+          userId: delegateUserId,
+          roleId: otherRoleId,
+          roleName: DEFAULT_ROLE_NAMES.STAFF,
+        },
+        requestId,
+        {},
+      );
+
+      expect(approvalRepository.createApprovalDecision).toHaveBeenCalledWith(
+        expect.objectContaining({
+          approverId: delegateUserId,
+          decision: "APPROVED",
+        }),
+        prisma,
+      );
+    });
+  });
+
+  describe("out-of-office approval actions", () => {
+    const delegateUserId = "bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+
+    it("allows an out-of-office delegate to approve the current step", async () => {
+      jest
+        .mocked(approvalRepository.findWorkflowRequestForApproval)
+        .mockResolvedValue({
+          ...requestForApproval,
+          values: [],
+        });
+      jest.mocked(approvalRepository.findBlockingApprovalDecisionForStep).mockResolvedValue(null);
+      jest
+        .mocked(outOfOfficeRepository.isActiveOutOfOfficeDelegateForRole)
+        .mockResolvedValue(true);
+      jest.mocked(approvalRepository.createApprovalDecision).mockResolvedValue({} as never);
+      jest.mocked(approvalRepository.applyWorkflowRequestApproval).mockResolvedValue({
+        id: requestId,
+        title: "New laptop request",
+        status: "PENDING_APPROVAL",
+        submittedAt,
+        currentStep: { id: stepTwoId, name: "IT Approval" },
+      });
+
+      await approveWorkflowRequest(
+        organisationId,
+        {
+          userId: delegateUserId,
+          roleId: otherRoleId,
+          roleName: DEFAULT_ROLE_NAMES.STAFF,
+        },
+        requestId,
+        {},
+      );
+
+      expect(outOfOfficeRepository.isActiveOutOfOfficeDelegateForRole).toHaveBeenCalledWith(
+        organisationId,
+        delegateUserId,
+        approverRoleId,
+      );
     });
   });
 });

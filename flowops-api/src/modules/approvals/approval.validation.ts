@@ -64,6 +64,14 @@ export const listPendingApprovalsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+/** Body for delegating the current approval step to another user. */
+export const delegateWorkflowRequestSchema = z.object({
+  delegatedToId: z.string().uuid(),
+  reason: optionalCommentSchema,
+});
+
+export type DelegateWorkflowRequestBody = z.infer<typeof delegateWorkflowRequestSchema>;
+
 export type ApproveWorkflowRequestBody = z.infer<typeof approveWorkflowRequestSchema>;
 export type RejectWorkflowRequestBody = z.infer<typeof rejectWorkflowRequestSchema>;
 export type RequestChangesWorkflowRequestBody = z.infer<

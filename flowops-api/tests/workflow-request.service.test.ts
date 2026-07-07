@@ -83,6 +83,7 @@ describe("workflow request service", () => {
         name: "Manager Approval",
         stepOrder: 1,
         approverRoleId,
+        condition: null,
       },
     ],
   };
@@ -485,6 +486,57 @@ describe("workflow request service", () => {
       expect(
         workflowRequestRepository.createWorkflowRequestWithValues,
       ).not.toHaveBeenCalled();
+    });
+
+    it("assigns the first eligible step when earlier steps have unmet conditions", async () => {
+      const fallbackStepId = "88888888-8888-4888-8888-888888888888";
+
+      jest.mocked(workflowRequestRepository.findTemplateForRequestSubmission).mockResolvedValue({
+        ...activeTemplate,
+        steps: [
+          {
+            id: stepId,
+            name: "Director Approval",
+            stepOrder: 1,
+            approverRoleId,
+            condition: { fieldKey: "urgency", operator: "equals", value: "High" },
+          },
+          {
+            id: fallbackStepId,
+            name: "Manager Approval",
+            stepOrder: 2,
+            approverRoleId,
+            condition: null,
+          },
+        ],
+      });
+
+      jest.mocked(workflowRequestRepository.createWorkflowRequestWithValues).mockResolvedValue({
+        ...submittedRecord,
+        currentStep: { id: fallbackStepId, name: "Manager Approval" },
+      });
+
+      const result = await submitWorkflowRequest(organisationId, requesterId, {
+        workflowTemplateId: templateId,
+        title: "Low urgency request",
+        values: [
+          { workflowFieldId: itemFieldId, value: "Laptop" },
+          { workflowFieldId: urgencyFieldId, value: "Low" },
+        ],
+      });
+
+      expect(
+        workflowRequestRepository.createWorkflowRequestWithValues,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          currentStepId: fallbackStepId,
+        }),
+        expect.anything(),
+      );
+      expect(result.currentStep).toEqual({
+        id: fallbackStepId,
+        name: "Manager Approval",
+      });
     });
   });
 

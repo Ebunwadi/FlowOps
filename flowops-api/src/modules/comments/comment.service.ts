@@ -20,13 +20,14 @@ import {
 } from "./comment.mapper";
 
 async function assertViewerCanAccessRequestComments(
+  organisationId: string,
   viewer: WorkflowRequestViewer,
   request: {
     requesterId: string;
     currentStep: { approverRoleId: string } | null;
   },
 ): Promise<void> {
-  const canAccess = await viewerCanAccessWorkflowRequest(viewer, {
+  const canAccess = await viewerCanAccessWorkflowRequest(organisationId, viewer, {
     requesterId: request.requesterId,
     currentStepApproverRoleId: request.currentStep?.approverRoleId ?? null,
   });
@@ -52,7 +53,7 @@ export async function listWorkflowRequestComments(
     throw new NotFoundError("Workflow request not found");
   }
 
-  await assertViewerCanAccessRequestComments(viewer, request);
+  await assertViewerCanAccessRequestComments(organisationId, viewer, request);
 
   const comments = await findWorkflowRequestComments(workflowRequestId);
   return comments.map(toWorkflowRequestCommentResponse);
@@ -73,7 +74,7 @@ export async function createWorkflowRequestCommentRecord(
     throw new NotFoundError("Workflow request not found");
   }
 
-  await assertViewerCanAccessRequestComments(viewer, request);
+  await assertViewerCanAccessRequestComments(organisationId, viewer, request);
 
   const comment = await createWorkflowRequestComment({
     workflowRequestId,

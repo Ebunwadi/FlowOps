@@ -27,6 +27,10 @@ model User {
   uploadedAttachments     Attachment[]
   createdApiKeys          ApiKey[]           @relation("CreatedApiKeys")
   createdWebhookEndpoints WebhookEndpoint[] @relation("CreatedWebhookEndpoints")
+  approvalDelegationsCreated ApprovalDelegation[] @relation("ApprovalDelegationsCreated")
+  approvalDelegationsReceived ApprovalDelegation[] @relation("ApprovalDelegationsReceived")
+  outOfOfficeRules          OutOfOfficeRule[]    @relation("OutOfOfficeUser")
+  outOfOfficeDelegations      OutOfOfficeRule[]    @relation("OutOfOfficeDelegate")
 
   @@map("users")
 }
@@ -50,6 +54,8 @@ model Organisation {
   settings          OrganisationSettings?
   apiKeys           ApiKey[]
   webhookEndpoints  WebhookEndpoint[]
+  approvalDelegations ApprovalDelegation[]
+  outOfOfficeRules    OutOfOfficeRule[]
 
   @@index([createdById])
   @@map("organisations")
@@ -251,6 +257,7 @@ model WorkflowStep {
   approverRole     Role             @relation(fields: [approverRoleId], references: [id])
   currentRequests  WorkflowRequest[]
   approvals        Approval[]
+  approvalDelegations ApprovalDelegation[]
 
   @@unique([workflowTemplateId, stepOrder])
   @@index([workflowTemplateId])
@@ -281,6 +288,7 @@ model WorkflowRequest {
   approvals        Approval[]
   comments         Comment[]
   attachments      Attachment[]
+  approvalDelegations ApprovalDelegation[]
 
   @@index([organisationId])
   @@index([workflowTemplateId])
@@ -465,4 +473,48 @@ model WebhookDelivery {
   @@index([webhookEndpointId])
   @@index([status])
   @@map("webhook_deliveries")
+}
+
+/// Delegation of a specific workflow request step to another user.
+model ApprovalDelegation {
+  id                String   @id @default(uuid())
+  organisationId    String
+  workflowRequestId String
+  workflowStepId    String
+  delegatedById     String
+  delegatedToId     String
+  reason            String?
+  createdAt         DateTime @default(now())
+
+  organisation    Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  workflowRequest WorkflowRequest @relation(fields: [workflowRequestId], references: [id], onDelete: Cascade)
+  workflowStep    WorkflowStep    @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  delegatedBy     User            @relation("ApprovalDelegationsCreated", fields: [delegatedById], references: [id])
+  delegatedTo     User            @relation("ApprovalDelegationsReceived", fields: [delegatedToId], references: [id])
+
+  @@unique([workflowRequestId, workflowStepId])
+  @@index([organisationId])
+  @@index([delegatedToId])
+  @@map("approval_delegations")
+}
+
+/// Automatic approval reassignment while a user is out of office.
+model OutOfOfficeRule {
+  id             String   @id @default(uuid())
+  organisationId String
+  userId         String
+  delegateToId   String
+  startsAt       DateTime
+  endsAt         DateTime
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation("OutOfOfficeUser", fields: [userId], references: [id])
+  delegateTo   User         @relation("OutOfOfficeDelegate", fields: [delegateToId], references: [id])
+
+  @@index([organisationId])
+  @@index([userId])
+  @@index([delegateToId])
+  @@map("out_of_office_rules")
 }

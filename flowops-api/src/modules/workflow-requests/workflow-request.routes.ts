@@ -27,12 +27,14 @@ import {
 } from "../comments/comment.controller";
 import {
   approveWorkflowRequestController,
+  delegateWorkflowRequestController,
   rejectWorkflowRequestController,
   requestChangesWorkflowRequestController,
 } from "../approvals/approval.controller";
 import {
   approveWorkflowRequestSchema,
   createWorkflowRequestCommentSchema,
+  delegateWorkflowRequestSchema,
   rejectWorkflowRequestSchema,
   requestChangesWorkflowRequestSchema,
   workflowRequestApprovalParamsSchema,
@@ -139,6 +141,17 @@ workflowRequestRouter.post(
     body: requestChangesWorkflowRequestSchema,
   }),
   requestChangesWorkflowRequestController,
+);
+
+workflowRequestRouter.post(
+  "/:id/delegate",
+  ensureOrganisationContext,
+  requirePermission("approvals:delegate"),
+  validateRequest({
+    params: workflowRequestApprovalParamsSchema,
+    body: delegateWorkflowRequestSchema,
+  }),
+  delegateWorkflowRequestController,
 );
 
 workflowRequestRouter.post(

@@ -33,6 +33,7 @@ const pendingApprovalSelect = {
 
 export interface ListPendingApprovalsFilters {
   approverRoleId?: string;
+  delegatedRequestIds?: string[];
   search?: string;
   page: number;
   limit: number;
@@ -40,15 +41,25 @@ export interface ListPendingApprovalsFilters {
 
 function buildPendingApprovalsWhere(
   organisationId: string,
-  filters: Pick<ListPendingApprovalsFilters, "approverRoleId" | "search">,
+  filters: Pick<
+    ListPendingApprovalsFilters,
+    "approverRoleId" | "delegatedRequestIds" | "search"
+  >,
 ) {
+  const accessConditions = [
+    ...(filters.approverRoleId
+      ? [{ currentStep: { approverRoleId: filters.approverRoleId } }]
+      : []),
+    ...(filters.delegatedRequestIds && filters.delegatedRequestIds.length > 0
+      ? [{ id: { in: filters.delegatedRequestIds } }]
+      : []),
+  ];
+
   return {
     organisationId,
     status: "PENDING_APPROVAL" as const,
     currentStepId: { not: null },
-    ...(filters.approverRoleId
-      ? { currentStep: { approverRoleId: filters.approverRoleId } }
-      : {}),
+    ...(accessConditions.length > 0 ? { OR: accessConditions } : {}),
     ...(filters.search
       ? {
           OR: [
@@ -114,7 +125,10 @@ export async function findPendingApprovals(
 
 export async function countPendingApprovals(
   organisationId: string,
-  filters: Pick<ListPendingApprovalsFilters, "approverRoleId" | "search">,
+  filters: Pick<
+    ListPendingApprovalsFilters,
+    "approverRoleId" | "delegatedRequestIds" | "search"
+  >,
   db: DbClient = prisma,
 ) {
   return db.workflowRequest.count({
@@ -140,6 +154,7 @@ const requestForApprovalSelect = {
       name: true,
       stepOrder: true,
       approverRoleId: true,
+      allowDelegation: true,
     },
   },
   workflowTemplate: {
@@ -153,6 +168,17 @@ const requestForApprovalSelect = {
           name: true,
           stepOrder: true,
           approverRoleId: true,
+          condition: true,
+        },
+      },
+    },
+  },
+  values: {
+    select: {
+      value: true,
+      workflowField: {
+        select: {
+          fieldKey: true,
         },
       },
     },

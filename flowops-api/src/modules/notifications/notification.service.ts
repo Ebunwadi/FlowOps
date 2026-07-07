@@ -27,6 +27,8 @@ import {
   enqueueRequestCompletedEmail,
   enqueueRequestRejectedEmail,
 } from "./notification.email";
+import { resolveApprovalNotificationRecipients } from "../out-of-office/out-of-office.resolution";
+import { recordOutOfOfficeReassignmentAudit } from "../out-of-office/out-of-office.audit";
 
 export const NOTIFICATION_TYPES = {
   APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
@@ -188,12 +190,12 @@ interface RequesterStepApprovedContext extends RequesterNotificationContext {
 async function recordApprovalRequiredNotificationsForRole(
   input: RoleApprovalNotificationContext,
 ): Promise<void> {
-  const recipients = await findActiveRecipientsByRole(
+  const roleRecipients = await findActiveRecipientsByRole(
     input.organisationId,
     input.approverRoleId,
   );
 
-  if (recipients.length === 0) {
+  if (roleRecipients.length === 0) {
     logger.warn(
       {
         origin: "api",
@@ -203,6 +205,25 @@ async function recordApprovalRequiredNotificationsForRole(
         workflowRequestId: input.workflowRequestId,
       },
       "[API] No active members found for approval notification role",
+    );
+    return;
+  }
+
+  const { recipients, reassignments } = await resolveApprovalNotificationRecipients(
+    input.organisationId,
+    roleRecipients,
+  );
+
+  if (recipients.length === 0) {
+    logger.warn(
+      {
+        origin: "api",
+        event: "notification.no_recipients_after_ooo_resolution",
+        organisationId: input.organisationId,
+        approverRoleId: input.approverRoleId,
+        workflowRequestId: input.workflowRequestId,
+      },
+      "[API] No approval notification recipients after out-of-office resolution",
     );
     return;
   }
@@ -231,6 +252,21 @@ async function recordApprovalRequiredNotificationsForRole(
     workflowName: input.workflowName,
     actionUrl,
   });
+
+  for (const reassignment of reassignments) {
+    recordOutOfOfficeReassignmentAudit({
+      organisationId: input.organisationId,
+      outOfOfficeUserId: reassignment.outOfOfficeUserId,
+      workflowRequestId: input.workflowRequestId,
+      metadata: {
+        workflowTemplateId: input.workflowTemplateId,
+        status: "PENDING_APPROVAL",
+        delegateToId: reassignment.delegateToId,
+        stepId: input.stepId,
+        stepName: input.stepName,
+      },
+    });
+  }
 }
 
 export function recordApprovalRequiredNotification(
@@ -436,5 +472,33 @@ export function recordChangesRequestedNotification(
       },
       "[API] Failed to persist changes requested notification",
     );
+  });
+}
+
+interface ApprovalDelegatedNotificationContext {
+  organisationId: string;
+  workflowRequestId: string;
+  delegatedToId: string;
+  delegatedByName: string;
+  stepName: string;
+  requestTitle?: string | null;
+}
+
+export function recordApprovalDelegatedNotification(
+  input: ApprovalDelegatedNotificationContext,
+): void {
+  const requestLabel = input.requestTitle?.trim() || "A workflow request";
+  const title = "Approval delegated to you";
+  const message = `${input.delegatedByName} delegated "${input.stepName}" on ${requestLabel} to you for approval.`;
+
+  recordNotification({
+    organisationId: input.organisationId,
+    recipientId: input.delegatedToId,
+    type: NOTIFICATION_TYPES.APPROVAL_REQUIRED,
+    title,
+    message,
+    entityType: NOTIFICATION_ENTITY_TYPES.WORKFLOW_REQUEST,
+    entityId: input.workflowRequestId,
+    actionUrl: approvalReviewActionUrl(input.workflowRequestId),
   });
 }

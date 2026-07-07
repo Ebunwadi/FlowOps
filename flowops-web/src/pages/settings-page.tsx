@@ -79,6 +79,24 @@ export function SettingsPage() {
         </Card>
       ) : null}
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Approval delegation</CardTitle>
+          <CardDescription>
+            Learn how to delegate individual requests and configure out-of-office
+            reassignment.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link to="/settings/delegation">Delegation settings</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/settings/out-of-office">Out-of-office rules</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <NotificationPreferencesPlaceholder />
 
       <Card>
