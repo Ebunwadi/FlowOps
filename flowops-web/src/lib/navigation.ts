@@ -41,6 +41,11 @@ export const PROTECTED_NAV_ITEMS: readonly NavItem[] = [
     permissions: ["auditlogs:view"],
   },
   {
+    label: "Reports",
+    to: "/reports",
+    permissions: ["reports:view"],
+  },
+  {
     label: "Settings",
     to: "/settings",
     permissions: ["settings:view"],

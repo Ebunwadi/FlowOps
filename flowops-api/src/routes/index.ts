@@ -12,6 +12,7 @@ import { notificationRouter } from "../modules/notifications/notification.routes
 import { outOfOfficeRouter } from "../modules/out-of-office/out-of-office.routes";
 import { organisationSettingsRouter } from "../modules/organisation-settings/organisation-settings.routes";
 import { organisationRouter } from "../modules/organisations/organisation.routes";
+import { reportsRouter } from "../modules/reports/reports.routes";
 import { workflowRequestRouter } from "../modules/workflow-requests/workflow-request.routes";
 import { workflowTemplateRouter } from "../modules/workflows/workflow-template.routes";
 import { webhookRouter } from "../modules/webhooks/webhook.routes";
@@ -31,5 +32,6 @@ apiRouter.use("/out-of-office", outOfOfficeRouter);
 apiRouter.use("/ai", aiRouter);
 apiRouter.use("/api-keys", apiKeyRouter);
 apiRouter.use("/webhooks", webhookRouter);
+apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/external", externalRouter);
 apiRouter.use("/notifications", notificationRouter);
