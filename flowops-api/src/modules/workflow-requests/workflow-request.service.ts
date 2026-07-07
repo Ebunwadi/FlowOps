@@ -29,6 +29,9 @@ import {
 } from "./workflow-request.mapper";
 import { notifyApproversOfPendingRequest } from "./workflow-request.notifications";
 import {
+  emitWorkflowRequestSubmittedWebhook,
+} from "../webhooks/webhook.emitter";
+import {
   countWorkflowRequests,
   createDraftWorkflowRequestRecord,
   createWorkflowRequestWithValues,
@@ -185,6 +188,15 @@ export async function submitWorkflowRequest(
     stepName: firstStep.name,
     requestTitle: request.title,
     workflowName: template.name,
+  });
+
+  emitWorkflowRequestSubmittedWebhook({
+    organisationId,
+    workflowRequestId: request.id,
+    workflowTemplateId: template.id,
+    status: request.status,
+    title: request.title,
+    currentStepId: firstStep.id,
   });
 
   return toSubmittedWorkflowRequestResponse(request);
@@ -595,6 +607,15 @@ export async function submitDraftWorkflowRequest(
     workflowName: template.name,
   });
 
+  emitWorkflowRequestSubmittedWebhook({
+    organisationId,
+    workflowRequestId: request.id,
+    workflowTemplateId: template.id,
+    status: request.status,
+    title: request.title,
+    currentStepId: firstStep.id,
+  });
+
   return toSubmittedWorkflowRequestResponse(request);
 }
 
@@ -679,6 +700,16 @@ async function resubmitChangesRequestedWorkflowRequest(
     stepName: resubmitStep.name,
     requestTitle: request.title,
     workflowName: template.name,
+  });
+
+  emitWorkflowRequestSubmittedWebhook({
+    organisationId,
+    workflowRequestId: request.id,
+    workflowTemplateId: template.id,
+    status: request.status,
+    title: request.title,
+    currentStepId: resubmitStepId,
+    resubmitted: true,
   });
 
   return toSubmittedWorkflowRequestResponse(request);

@@ -23,6 +23,11 @@ import {
   notifyRequesterOfRejectedRequest,
 } from "./approval.notifications";
 import {
+  emitWorkflowRequestApprovedWebhook,
+  emitWorkflowRequestCompletedWebhook,
+  emitWorkflowRequestRejectedWebhook,
+} from "../webhooks/webhook.emitter";
+import {
   applyWorkflowRequestApproval,
   applyWorkflowRequestChangesRequested,
   applyWorkflowRequestRejection,
@@ -228,6 +233,15 @@ export async function approveWorkflowRequest(
       nextStepName: nextStep.name,
       requestTitle: request.title,
     });
+    emitWorkflowRequestApprovedWebhook({
+      organisationId,
+      workflowRequestId: request.id,
+      workflowTemplateId: request.workflowTemplateId,
+      status: updatedRequest.status,
+      title: request.title,
+      stepId: currentStep.id,
+      stepName: currentStep.name,
+    });
   } else {
     notifyRequesterOfCompletedRequest({
       organisationId,
@@ -235,6 +249,13 @@ export async function approveWorkflowRequest(
       workflowTemplateId: request.workflowTemplateId,
       requesterId: request.requesterId,
       requestTitle: request.title,
+    });
+    emitWorkflowRequestCompletedWebhook({
+      organisationId,
+      workflowRequestId: request.id,
+      workflowTemplateId: request.workflowTemplateId,
+      status: updatedRequest.status,
+      title: request.title,
     });
   }
 
@@ -304,6 +325,17 @@ export async function rejectWorkflowRequest(
     requesterId: request.requesterId,
     comment: input.comment,
     requestTitle: request.title,
+  });
+
+  emitWorkflowRequestRejectedWebhook({
+    organisationId,
+    workflowRequestId: request.id,
+    workflowTemplateId: request.workflowTemplateId,
+    status: updatedRequest.status,
+    title: request.title,
+    comment: input.comment,
+    rejectedStepId: currentStep.id,
+    rejectedStepName: currentStep.name,
   });
 
   return toSubmittedWorkflowRequestResponse(updatedRequest);

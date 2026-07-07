@@ -14,6 +14,8 @@ import {
 export function SettingsPage() {
   const { hasPermission } = usePermissions();
   const canViewOrganisationSettings = hasPermission("settings:view");
+  const canManageApiKeys = hasPermission("apikeys:manage");
+  const canManageWebhooks = hasPermission("webhooks:manage");
 
   return (
     <div className="space-y-6">
@@ -38,6 +40,40 @@ export function SettingsPage() {
           <CardContent>
             <Button asChild variant="outline">
               <Link to="/settings/organisation">Open organisation settings</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {canManageApiKeys ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">API keys</CardTitle>
+            <CardDescription>
+              Create and revoke keys for external integrations with this
+              organisation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link to="/settings/api-keys">Manage API keys</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {canManageWebhooks ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Webhooks</CardTitle>
+            <CardDescription>
+              Register outbound endpoints and monitor delivery status for workflow
+              events.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link to="/settings/webhooks">Manage webhooks</Link>
             </Button>
           </CardContent>
         </Card>

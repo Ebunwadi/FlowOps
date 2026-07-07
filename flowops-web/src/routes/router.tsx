@@ -17,6 +17,8 @@ import { EditDraftRequestPage } from "@/pages/edit-draft-request-page";
 import { RequestDetailPage } from "@/pages/request-detail-page";
 import { RequestsPage } from "@/pages/requests-page";
 import { SubmitRequestPage } from "@/pages/submit-request-page";
+import { ApiKeysSettingsPage } from "@/pages/api-keys-settings-page";
+import { WebhooksSettingsPage } from "@/pages/webhooks-settings-page";
 import { OrganisationSettingsPage } from "@/pages/organisation-settings-page";
 import { SettingsPage } from "@/pages/settings-page";
 import { WorkflowsPage } from "@/pages/workflows-page";
@@ -107,6 +109,14 @@ export const router = createBrowserRouter([
               {
                 path: "settings/organisation",
                 element: <OrganisationSettingsPage />,
+              },
+              {
+                path: "settings/api-keys",
+                element: <ApiKeysSettingsPage />,
+              },
+              {
+                path: "settings/webhooks",
+                element: <WebhooksSettingsPage />,
               },
               {
                 path: "audit-logs",

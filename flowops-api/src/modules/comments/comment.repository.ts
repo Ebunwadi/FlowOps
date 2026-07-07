@@ -18,6 +18,7 @@ const commentSelect = {
 
 const requestForCommentAccessSelect = {
   id: true,
+  workflowTemplateId: true,
   requesterId: true,
   currentStep: {
     select: {

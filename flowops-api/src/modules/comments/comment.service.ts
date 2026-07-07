@@ -13,6 +13,7 @@ import {
   findWorkflowRequestComments,
   findWorkflowRequestForCommentAccess,
 } from "./comment.repository";
+import { emitWorkflowRequestCommentAddedWebhook } from "../webhooks/webhook.emitter";
 import {
   toWorkflowRequestCommentResponse,
   type WorkflowRequestCommentResponse,
@@ -91,6 +92,15 @@ export async function createWorkflowRequestCommentRecord(
     },
     `[API] Comment added to workflow request "${workflowRequestId}"`,
   );
+
+  emitWorkflowRequestCommentAddedWebhook({
+    organisationId,
+    workflowRequestId,
+    workflowTemplateId: request.workflowTemplateId,
+    commentId: comment.id,
+    authorId: viewer.userId,
+    content: input.content,
+  });
 
   return toWorkflowRequestCommentResponse(comment);
 }
